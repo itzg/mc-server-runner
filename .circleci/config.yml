@@ -1,0 +1,42 @@
+version: 2
+
+defaults: &defaults
+  docker:
+    - image: circleci/golang:1.10.2
+
+  working_directory: /go/src/github.com/itzg/mc-server-runner
+
+jobs:
+  build:
+    <<: *defaults
+    steps:
+      - checkout
+
+      - run: go test -v ./...
+
+  release:
+    <<: *defaults
+    steps:
+      - checkout
+
+      - run:
+          name: goreleaser
+          command: curl -sL https://git.io/goreleaser | bash
+
+workflows:
+  version: 2
+  main:
+    jobs:
+      - build:
+          filters:
+            tags:
+              only: /.*/
+
+      - release:
+          requires:
+            - build
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+/
+            branches:
+              ignore: /.*/

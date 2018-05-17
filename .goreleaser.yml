@@ -1,0 +1,35 @@
+project_name: mc-server-runner
+release:
+  github:
+    owner: itzg
+    name: mc-server-runner
+brew:
+  install: bin.install "mc-server-runner"
+builds:
+- goos:
+  - linux
+  - darwin
+  goarch:
+  - amd64
+  goarm:
+  - "6"
+  main: .
+  env:
+    - CGO_ENABLED=0
+  ldflags: -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+  binary: mc-server-runner
+archive:
+  format: tar.gz
+  name_template: '{{ .Binary }}_{{.Version}}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{
+    .Arm }}{{ end }}'
+  files:
+  - licence*
+  - LICENCE*
+  - license*
+  - LICENSE*
+  - readme*
+  - README*
+  - changelog*
+  - CHANGELOG*
+snapshot:
+  name_template: SNAPSHOT-{{ .Commit }}
