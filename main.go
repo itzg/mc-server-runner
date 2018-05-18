@@ -15,6 +15,7 @@ import (
 
 func main() {
 	signalChan := make(chan os.Signal, 1)
+	// docker stop sends a SIGTERM, so intercept that and send a 'stop' command to the server
 	signal.Notify(signalChan, syscall.SIGTERM)
 
 	bootstrap := flag.String("bootstrap", "", "Specifies commands to initially send to the server")
@@ -26,7 +27,7 @@ func main() {
 
 	var cmd *exec.Cmd
 	if strings.HasSuffix(flag.Arg(0), ".sh") {
-		cmd = exec.Command("sh", os.Args...)
+		cmd = exec.Command("sh", flag.Args()...)
 	} else {
 		if flag.NArg() > 1 {
 			cmd = exec.Command(flag.Arg(0), flag.Args()[1:]...)
@@ -63,11 +64,15 @@ func main() {
 		}
 	}
 
+	// Relay stdin/out/err between outside and server
 	go func() {
 		io.Copy(os.Stdout, stdout)
 	}()
 	go func() {
 		io.Copy(os.Stderr, stderr)
+	}()
+	go func() {
+		io.Copy(stdin, os.Stdin)
 	}()
 
 	<-signalChan
