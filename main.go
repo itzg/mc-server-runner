@@ -18,7 +18,9 @@ func main() {
 	// docker stop sends a SIGTERM, so intercept that and send a 'stop' command to the server
 	signal.Notify(signalChan, syscall.SIGTERM)
 
-	bootstrap := flag.String("bootstrap", "", "Specifies commands to initially send to the server")
+	bootstrap := flag.String("bootstrap", "", "Specifies a file with commands to initially send to the server")
+	stopDuration := flag.String("stop-duration", "", "Amount of time in Golang duration to wait after sending the 'stop' command.")
+	detachStdin := flag.Bool("detach-stdin", false, "Don't forward stdin and allow process to be put in background")
 	flag.Parse()
 
 	if flag.NArg() < 1 {
@@ -71,19 +73,27 @@ func main() {
 	go func() {
 		io.Copy(os.Stderr, stderr)
 	}()
-	go func() {
-		io.Copy(stdin, os.Stdin)
-	}()
+	if !*detachStdin {
+		go func() {
+			io.Copy(stdin, os.Stdin)
+		}()
+	}
 
 	<-signalChan
 	log.Print("Sending 'stop' to Minecraft server...")
 	stdin.Write([]byte("stop\n"))
 
 	log.Print("Waiting for completion...")
-	time.AfterFunc(5*time.Second, func() {
-		log.Print("Took too long, so killing server process")
-		cmd.Process.Kill()
-	})
+	if *stopDuration != "" {
+		if d, err := time.ParseDuration(*stopDuration); err == nil {
+			time.AfterFunc(d, func() {
+				log.Print("Took too long, so killing server process")
+				cmd.Process.Kill()
+			})
+		} else {
+			log.Printf("Invalid stop duration: '%v'", *stopDuration)
+		}
+	}
 	cmd.Wait()
 	log.Print("Done")
 }
