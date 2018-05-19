@@ -79,21 +79,34 @@ func main() {
 		}()
 	}
 
-	<-signalChan
-	log.Print("Sending 'stop' to Minecraft server...")
-	stdin.Write([]byte("stop\n"))
+	procDone := make(chan struct{}, 1)
+	go func() {
+		cmd.Wait()
+		procDone <- struct{}{}
+	}()
 
-	log.Print("Waiting for completion...")
-	if *stopDuration != "" {
-		if d, err := time.ParseDuration(*stopDuration); err == nil {
-			time.AfterFunc(d, func() {
-				log.Print("Took too long, so killing server process")
-				cmd.Process.Kill()
-			})
-		} else {
-			log.Printf("Invalid stop duration: '%v'", *stopDuration)
+	for {
+		select {
+		case <-signalChan:
+			log.Print("Sending 'stop' to Minecraft server...")
+			stdin.Write([]byte("stop\n"))
+
+			log.Print("Waiting for completion...")
+			if *stopDuration != "" {
+				if d, err := time.ParseDuration(*stopDuration); err == nil {
+					time.AfterFunc(d, func() {
+						log.Print("Took too long, so killing server process")
+						cmd.Process.Kill()
+					})
+				} else {
+					log.Printf("Invalid stop duration: '%v'", *stopDuration)
+				}
+			}
+
+		case <-procDone:
+			log.Print("Done")
+			return
 		}
 	}
-	cmd.Wait()
-	log.Print("Done")
+
 }
