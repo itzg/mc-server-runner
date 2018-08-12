@@ -1,16 +1,16 @@
 package main
 
 import (
-	"strings"
+	"flag"
+	"io"
+	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"os/signal"
-	"log"
-	"io"
-	"time"
-	"flag"
-	"io/ioutil"
+	"strings"
 	"syscall"
+	"time"
 )
 
 func main() {
@@ -21,6 +21,7 @@ func main() {
 	bootstrap := flag.String("bootstrap", "", "Specifies a file with commands to initially send to the server")
 	stopDuration := flag.String("stop-duration", "", "Amount of time in Golang duration to wait after sending the 'stop' command.")
 	detachStdin := flag.Bool("detach-stdin", false, "Don't forward stdin and allow process to be put in background")
+	shell := flag.String("shell", "bash", "The shell to use for launching scripts")
 	flag.Parse()
 
 	if flag.NArg() < 1 {
@@ -29,7 +30,7 @@ func main() {
 
 	var cmd *exec.Cmd
 	if strings.HasSuffix(flag.Arg(0), ".sh") {
-		cmd = exec.Command("sh", flag.Args()...)
+		cmd = exec.Command(*shell, flag.Args()...)
 	} else {
 		if flag.NArg() > 1 {
 			cmd = exec.Command(flag.Arg(0), flag.Args()[1:]...)
@@ -53,7 +54,10 @@ func main() {
 		log.Fatalf("Unable to get stderr: %s", err.Error())
 	}
 
-	cmd.Start()
+	err = cmd.Start()
+	if err != nil {
+		log.Fatalf("Failed to start: %s", err.Error())
+	}
 
 	if *bootstrap != "" {
 		bootstrapContent, err := ioutil.ReadFile(*bootstrap)
