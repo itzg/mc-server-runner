@@ -92,18 +92,28 @@ func main() {
 	for {
 		select {
 		case <-signalChan:
-			log.Print("Sending 'stop' to Minecraft server...")
-			stdin.Write([]byte("stop\n"))
+			if hasRconCli() {
+				err := stopWithRconCli()
+				if err != nil {
+					log.Println("ERROR Failed to stop using rcon-cli", err)
+					stopViaConsole(stdin)
+				}
+			} else {
+				stopViaConsole(stdin)
+			}
 
 			log.Print("Waiting for completion...")
 			if *stopDuration != "" {
 				if d, err := time.ParseDuration(*stopDuration); err == nil {
 					time.AfterFunc(d, func() {
-						log.Print("Took too long, so killing server process")
-						cmd.Process.Kill()
+						log.Print("ERROR Took too long, so killing server process")
+						err := cmd.Process.Kill()
+						if err != nil {
+							log.Println("ERROR failed to forcefully kill process")
+						}
 					})
 				} else {
-					log.Printf("Invalid stop duration: '%v'", *stopDuration)
+					log.Printf("ERROR Invalid stop duration: '%v'", *stopDuration)
 				}
 			}
 
@@ -113,4 +123,41 @@ func main() {
 		}
 	}
 
+}
+
+func hasRconCli() bool {
+	if strings.ToUpper(os.Getenv("ENABLE_RCON")) == "TRUE" {
+		_, err := exec.LookPath("rcon-cli")
+		return err == nil
+	} else {
+		return false
+	}
+}
+
+func stopWithRconCli() error {
+	port := os.Getenv("RCON_PORT")
+	if port == "" {
+		port = "25575"
+	}
+
+	password := os.Getenv("RCON_PASSWORD")
+	if password == "" {
+		password = "minecraft"
+	}
+
+	log.Println("Stopping with rcon-cli")
+	rconCliCmd := exec.Command("rcon-cli",
+		"--port", port,
+		"--password", password,
+		"stop")
+
+	return rconCliCmd.Run()
+}
+
+func stopViaConsole(stdin io.Writer) {
+	log.Print("Sending 'stop' to Minecraft server...")
+	_, err := stdin.Write([]byte("stop\n"))
+	if err != nil {
+		log.Println("ERROR failed to write stop command to server console")
+	}
 }
