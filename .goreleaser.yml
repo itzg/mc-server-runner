@@ -36,3 +36,4 @@ changelog:
     exclude:
       - '^ci:'
       - '^misc:'
+      - '^docs:'

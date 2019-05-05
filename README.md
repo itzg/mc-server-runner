@@ -8,16 +8,16 @@ Start a golang container for building and execution:
 
 ```bash
 docker run -it --rm \
-  -v ${PWD}:/go/src/github.com/itzg/mc-server-runner \
-  -w /go/src/github.com/itzg/mc-server-runner \
-  circleci/golang:1.10.2
+  -v ${PWD}:/build \
+  -w /build \
+  circleci/golang:1.12
 ```
 
 Within that container, build/test by running:
 
 ```bash
-go run test/dump.sh
+go run main.go test/dump.sh
 go run main.go test/bash-only.sh
-# The following shoudl fail
+# The following should fail
 go run main.go --shell sh test/bash-only.sh
 ```
