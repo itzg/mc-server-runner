@@ -12,6 +12,9 @@ builds:
   - amd64
   - arm
   - arm64
+  goarm:
+  - 6
+  - 7
   main: .
   env:
     - CGO_ENABLED=0
