@@ -10,16 +10,9 @@ jobs:
     steps:
       - checkout
 
-      - restore_cache:
-          keys:
-            - cache-{{ arch }}-{{ .Branch }}-{{ checksum "go.sum" }}
+      # NOTE: no cache needed since no external modules are used in go.mod
 
       - run: go test -v ./...
-
-      - save_cache:
-          key: cache-{{ arch }}-{{ .Branch }}-{{ checksum "go.sum" }}
-          paths:
-            - /go/pkg
 
   release:
     <<: *defaults
