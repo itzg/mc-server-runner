@@ -2,7 +2,7 @@ version: 2
 
 defaults: &defaults
   docker:
-    - image: circleci/golang:1.11
+    - image: circleci/golang:1.12
 
 jobs:
   build:
@@ -10,7 +10,16 @@ jobs:
     steps:
       - checkout
 
+      - restore_cache:
+          keys:
+            - cache-{{ arch }}-{{ .Branch }}-{{ checksum "go.sum" }}
+
       - run: go test -v ./...
+        -
+      - save_cache:
+          key: cache-{{ arch }}-{{ .Branch }}-{{ checksum "go.sum" }}
+          paths:
+            - /go/pkg
 
   release:
     <<: *defaults
