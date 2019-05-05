@@ -35,3 +35,4 @@ changelog:
   filters:
     exclude:
       - '^ci:'
+      - '^misc:'

@@ -15,7 +15,7 @@ jobs:
             - cache-{{ arch }}-{{ .Branch }}-{{ checksum "go.sum" }}
 
       - run: go test -v ./...
-        -
+
       - save_cache:
           key: cache-{{ arch }}-{{ .Branch }}-{{ checksum "go.sum" }}
           paths:
