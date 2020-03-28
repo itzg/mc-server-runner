@@ -1,24 +1,24 @@
-version: 2
+version: 2.1
 
-defaults: &defaults
-  docker:
-    - image: circleci/golang:1.13
+orbs:
+  go: circleci/go@0.2.0
 
 jobs:
   build:
-    <<: *defaults
+    executor: &execWithGo
+      name: go/default
+      tag: "1.13"
     steps:
       - checkout
-
-      # NOTE: no cache needed since no external modules are used in go.mod
-
-      - run: go test -v ./...
+      - go/load-cache
+      - go/test
+      - go/save-cache
 
   release:
-    <<: *defaults
+    executor: *execWithGo
     steps:
       - checkout
-
+      - go/load-cache
       - run:
           name: goreleaser
           command: curl -sL https://git.io/goreleaser | bash
