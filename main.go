@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"github.com/itzg/go-flagsfiller"
 	"io"
 	"io/ioutil"
 	"log"
@@ -13,16 +14,23 @@ import (
 	"time"
 )
 
+type Args struct {
+	Bootstrap    string        `usage:"Specifies a file with commands to initially send to the server"`
+	StopDuration time.Duration `usage:"Amount of time in Golang duration to wait after sending the 'stop' command."`
+	DetachStdin  bool          `usage:"Don't forward stdin and allow process to be put in background"`
+	Shell        string        `usage:"The shell to use for launching scripts"`
+}
+
 func main() {
 	signalChan := make(chan os.Signal, 1)
 	// docker stop sends a SIGTERM, so intercept that and send a 'stop' command to the server
 	signal.Notify(signalChan, syscall.SIGTERM)
 
-	bootstrap := flag.String("bootstrap", "", "Specifies a file with commands to initially send to the server")
-	stopDuration := flag.String("stop-duration", "", "Amount of time in Golang duration to wait after sending the 'stop' command.")
-	detachStdin := flag.Bool("detach-stdin", false, "Don't forward stdin and allow process to be put in background")
-	shell := flag.String("shell", "bash", "The shell to use for launching scripts")
-	flag.Parse()
+	var args Args
+	err := flagsfiller.Parse(&args)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	if flag.NArg() < 1 {
 		log.Fatal("Missing executable arguments")
@@ -30,7 +38,7 @@ func main() {
 
 	var cmd *exec.Cmd
 	if strings.HasSuffix(flag.Arg(0), ".sh") {
-		cmd = exec.Command(*shell, flag.Args()...)
+		cmd = exec.Command(args.Shell, flag.Args()...)
 	} else {
 		if flag.NArg() > 1 {
 			cmd = exec.Command(flag.Arg(0), flag.Args()[1:]...)
@@ -59,8 +67,8 @@ func main() {
 		log.Fatalf("Failed to start: %s", err.Error())
 	}
 
-	if *bootstrap != "" {
-		bootstrapContent, err := ioutil.ReadFile(*bootstrap)
+	if args.Bootstrap != "" {
+		bootstrapContent, err := ioutil.ReadFile(args.Bootstrap)
 		if err != nil {
 			log.Fatalf("Failed to read bootstrap commands: %s", err.Error())
 		}
@@ -77,7 +85,7 @@ func main() {
 	go func() {
 		io.Copy(os.Stderr, stderr)
 	}()
-	if !*detachStdin {
+	if !args.DetachStdin {
 		go func() {
 			io.Copy(stdin, os.Stdin)
 		}()
@@ -103,18 +111,14 @@ func main() {
 			}
 
 			log.Print("Waiting for completion...")
-			if *stopDuration != "" {
-				if d, err := time.ParseDuration(*stopDuration); err == nil {
-					time.AfterFunc(d, func() {
-						log.Print("ERROR Took too long, so killing server process")
-						err := cmd.Process.Kill()
-						if err != nil {
-							log.Println("ERROR failed to forcefully kill process")
-						}
-					})
-				} else {
-					log.Printf("ERROR Invalid stop duration: '%v'", *stopDuration)
-				}
+			if args.StopDuration != 0 {
+				time.AfterFunc(args.StopDuration, func() {
+					log.Print("ERROR Took too long, so killing server process")
+					err := cmd.Process.Kill()
+					if err != nil {
+						log.Println("ERROR failed to forcefully kill process")
+					}
+				})
 			}
 
 		case <-procDone:
