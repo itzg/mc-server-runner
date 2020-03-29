@@ -1,5 +1,5 @@
 [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/itzg/mc-server-runner)](https://github.com/itzg/mc-server-runner/releases/latest)
-[![CircleCI](https://img.shields.io/circleci/build/github/itzg/mc-server-runner)](https://app.circleci.com/pipelines/github/itzg/mc-server-runner/jobs)
+[![CircleCI](https://img.shields.io/circleci/build/github/itzg/mc-server-runner)](https://app.circleci.com/pipelines/github/itzg/mc-server-runner/)
 
 
 This is a process wrapper used by 
