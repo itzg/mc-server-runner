@@ -18,7 +18,7 @@ type Args struct {
 	Bootstrap    string        `usage:"Specifies a file with commands to initially send to the server"`
 	StopDuration time.Duration `usage:"Amount of time in Golang duration to wait after sending the 'stop' command."`
 	DetachStdin  bool          `usage:"Don't forward stdin and allow process to be put in background"`
-	Shell        string        `usage:"The shell to use for launching scripts"`
+	Shell        string        `usage:"When set, pass the arguments to this shell"`
 }
 
 func main() {
@@ -37,14 +37,10 @@ func main() {
 	}
 
 	var cmd *exec.Cmd
-	if strings.HasSuffix(flag.Arg(0), ".sh") {
+	if args.Shell != "" {
 		cmd = exec.Command(args.Shell, flag.Args()...)
 	} else {
-		if flag.NArg() > 1 {
-			cmd = exec.Command(flag.Arg(0), flag.Args()[1:]...)
-		} else {
-			cmd = exec.Command(flag.Arg(0))
-		}
+		cmd = exec.Command(flag.Arg(0), flag.Args()[1:]...)
 	}
 
 	stdin, err := cmd.StdinPipe()
