@@ -1,8 +1,13 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
 	"github.com/itzg/go-flagsfiller"
+	"github.com/itzg/mc-server-runner/cfsync"
+	"github.com/itzg/zapconfigs"
+	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
 	"log"
@@ -15,10 +20,14 @@ import (
 )
 
 type Args struct {
+	Debug        bool          `usage:"Enable debug logging"`
 	Bootstrap    string        `usage:"Specifies a file with commands to initially send to the server"`
 	StopDuration time.Duration `usage:"Amount of time in Golang duration to wait after sending the 'stop' command."`
 	DetachStdin  bool          `usage:"Don't forward stdin and allow process to be put in background"`
 	Shell        string        `usage:"When set, pass the arguments to this shell"`
+	Cf           struct {
+		InstanceFile string `usage:"Path to a Twitch/Curse minecraftinstance.json file for server setup"`
+	}
 }
 
 func main() {
@@ -32,45 +41,70 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if flag.NArg() < 1 {
-		log.Fatal("Missing executable arguments")
+	var logger *zap.Logger
+	if args.Debug {
+		logger = zapconfigs.NewDebugLogger()
+	} else {
+		logger = zapconfigs.NewDefaultLogger()
 	}
+	defer logger.Sync()
+
+	ctx, cancel := context.WithCancel(context.Background())
 
 	var cmd *exec.Cmd
-	if args.Shell != "" {
-		cmd = exec.Command(args.Shell, flag.Args()...)
+
+	if flag.NArg() < 1 {
+		logger.Fatal("Missing executable arguments")
+	}
+
+	if args.Cf.InstanceFile != "" {
+		serverJar, err := cfsync.PrepareInstanceFromFile(logger.Named("cfsync"), args.Cf.InstanceFile, ".")
+		if err != nil {
+			logger.Fatal("Failed to prepare instance", zap.Error(err))
+		}
+
+		args, err := fillServerJar(flag.Args()[1:], serverJar)
+		if err != nil {
+			logger.Fatal("Invalid arguments", zap.Error(err))
+		}
+
+		cmd = exec.Command(flag.Arg(0), args...)
 	} else {
-		cmd = exec.Command(flag.Arg(0), flag.Args()[1:]...)
+		if args.Shell != "" {
+			cmd = exec.Command(args.Shell, flag.Args()...)
+		} else {
+			cmd = exec.Command(flag.Arg(0), flag.Args()[1:]...)
+		}
 	}
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		log.Fatalf("Unable to get stdin: %s", err.Error())
+		logger.Error("Unable to get stdin", zap.Error(err))
 	}
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		log.Fatalf("Unable to get stdout: %s", err.Error())
+		logger.Error("Unable to get stdout", zap.Error(err))
 	}
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		log.Fatalf("Unable to get stderr: %s", err.Error())
+		logger.Error("Unable to get stderr", zap.Error(err))
 	}
 
 	err = cmd.Start()
 	if err != nil {
-		log.Fatalf("Failed to start: %s", err.Error())
+		logger.Error("Failed to start", zap.Error(err))
 	}
 
 	if args.Bootstrap != "" {
 		bootstrapContent, err := ioutil.ReadFile(args.Bootstrap)
 		if err != nil {
-			log.Fatalf("Failed to read bootstrap commands: %s", err.Error())
+			logger.Error("Failed to read bootstrap commands", zap.Error(err))
 		}
 		_, err = stdin.Write(bootstrapContent)
 		if err != nil {
-			log.Fatalf("Failed to write bootstrap content: %s", err.Error())
+			logger.Error("Failed to write bootstrap content", zap.Error(err))
 		}
 	}
 
@@ -87,10 +121,9 @@ func main() {
 		}()
 	}
 
-	procDone := make(chan struct{}, 1)
 	go func() {
 		cmd.Wait()
-		procDone <- struct{}{}
+		cancel()
 	}()
 
 	for {
@@ -99,26 +132,26 @@ func main() {
 			if hasRconCli() {
 				err := stopWithRconCli()
 				if err != nil {
-					log.Println("ERROR Failed to stop using rcon-cli", err)
-					stopViaConsole(stdin)
+					logger.Error("ERROR Failed to stop using rcon-cli", zap.Error(err))
+					stopViaConsole(logger, stdin)
 				}
 			} else {
-				stopViaConsole(stdin)
+				stopViaConsole(logger, stdin)
 			}
 
-			log.Print("Waiting for completion...")
+			logger.Info("Waiting for completion...")
 			if args.StopDuration != 0 {
 				time.AfterFunc(args.StopDuration, func() {
-					log.Print("ERROR Took too long, so killing server process")
+					logger.Error("ERROR Took too long, so killing server process")
 					err := cmd.Process.Kill()
 					if err != nil {
-						log.Println("ERROR failed to forcefully kill process")
+						logger.Error("ERROR failed to forcefully kill process")
 					}
 				})
 			}
 
-		case <-procDone:
-			log.Print("Done")
+		case <-ctx.Done():
+			logger.Info("Done")
 			return
 		}
 	}
@@ -154,10 +187,29 @@ func stopWithRconCli() error {
 	return rconCliCmd.Run()
 }
 
-func stopViaConsole(stdin io.Writer) {
-	log.Print("Sending 'stop' to Minecraft server...")
+func stopViaConsole(logger *zap.Logger, stdin io.Writer) {
+	logger.Info("Sending 'stop' to Minecraft server...")
 	_, err := stdin.Write([]byte("stop\n"))
 	if err != nil {
-		log.Println("ERROR failed to write stop command to server console")
+		logger.Error("ERROR failed to write stop command to server console", zap.Error(err))
+	}
+}
+
+func fillServerJar(args []string, serverJar string) ([]string, error) {
+	result := make([]string, len(args))
+	found := false
+	for i, arg := range args {
+		if arg == "_SERVERJAR_" {
+			found = true
+			result[i] = serverJar
+		} else {
+			result[i] = arg
+		}
+	}
+
+	if !found {
+		return nil, fmt.Errorf("unable to locate _SERVERJAR_ placeholder in args")
+	} else {
+		return result, nil
 	}
 }
