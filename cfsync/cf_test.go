@@ -29,12 +29,12 @@ func TestLoadMinecraftInstance(t *testing.T) {
 	assert.Len(t, instance.InstalledAddons, 122)
 
 	assert.Equal(t, "Bookshelf-1.15.2-5.1.4.jar",
-		instance.InstalledAddons[0].InstalledFile.FileName)
+		instance.InstalledAddons[0].InstalledFile.FileNameOnDisk)
 	assert.Equal(t, "https://edge.forgecdn.net/files/2898/277/Bookshelf-1.15.2-5.1.4.jar",
 		instance.InstalledAddons[0].InstalledFile.DownloadUrl)
 
 	assert.Equal(t, "AmbientSounds_v3.0.19_mc1.15.2.jar",
-		instance.InstalledAddons[121].InstalledFile.FileName)
+		instance.InstalledAddons[121].InstalledFile.FileNameOnDisk)
 	assert.Equal(t, "https://edge.forgecdn.net/files/2905/243/AmbientSounds_v3.0.19_mc1.15.2.jar",
 		instance.InstalledAddons[121].InstalledFile.DownloadUrl)
 }
@@ -116,14 +116,14 @@ func TestPrepareMods(t *testing.T) {
 	instance.InstalledAddons = []*cfsync.CfInstalledAddon{
 		{
 			InstalledFile: cfsync.CfInstalledAddonFile{
-				DownloadUrl: ts.URL + "/mod1.jar",
-				FileName:    "mod1.jar",
+				DownloadUrl:    ts.URL + "/mod1.jar",
+				FileNameOnDisk: "mod1.jar",
 			},
 		},
 		{
 			InstalledFile: cfsync.CfInstalledAddonFile{
-				DownloadUrl: ts.URL + "/mod2.jar",
-				FileName:    "mod2.jar",
+				DownloadUrl:    ts.URL + "/mod2.jar",
+				FileNameOnDisk: "mod2.jar",
 			},
 		},
 	}

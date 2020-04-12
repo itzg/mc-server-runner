@@ -16,8 +16,8 @@ const (
 )
 
 type CfInstalledAddonFile struct {
-	DownloadUrl string
-	FileName    string
+	DownloadUrl    string
+	FileNameOnDisk string
 }
 
 type CfInstalledAddon struct {
@@ -97,7 +97,7 @@ func PrepareMods(logger *zap.Logger, instance *CfMinecraftInstance, basePath str
 
 	latestMods := NewStringSet()
 	for _, addon := range instance.InstalledAddons {
-		filename := addon.InstalledFile.FileName
+		filename := addon.InstalledFile.FileNameOnDisk
 		latestMods.Add(filename)
 
 		modPath := filepath.Join(modsPath, filename)
@@ -137,7 +137,7 @@ func PrepareModFile(logger *zap.Logger, modPath string, downloadUrl string) erro
 		return nil
 	}
 
-	logger.Debug("Downloading mod", zap.String("url", downloadUrl))
+	logger.Info("Downloading mod", zap.String("file", filepath.Base(modPath)))
 	resp, err := http.Get(downloadUrl)
 	if err != nil {
 		return err

@@ -48,6 +48,7 @@ func main() {
 		logger = zapconfigs.NewDefaultLogger()
 	}
 	defer logger.Sync()
+	logger = logger.Named("mc-server-runner")
 
 	ctx, cancel := context.WithCancel(context.Background())
 
