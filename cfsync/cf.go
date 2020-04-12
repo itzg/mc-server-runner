@@ -63,7 +63,7 @@ func PrepareInstance(logger *zap.Logger, r io.Reader, basePath string) (string, 
 		return "", fmt.Errorf("failed to load instance file: %w", err)
 	}
 
-	logger.Debug("preparing instance", zap.String("name", instance.Name))
+	logger.Info("Preparing Twitch/Curse instance", zap.String("name", instance.Name))
 
 	forgeJarName, err := PrepareForge(logger, instance.BaseModLoader.DownloadUrl, basePath)
 	if err != nil {
@@ -75,13 +75,13 @@ func PrepareInstance(logger *zap.Logger, r io.Reader, basePath string) (string, 
 		return "", fmt.Errorf("failed to prepare mods: %w", err)
 	}
 
-	logger.Debug("prepared instance", zap.String("name", instance.Name))
+	logger.Debug("Prepared instance", zap.String("name", instance.Name))
 
 	return forgeJarName, nil
 }
 
 func PrepareMods(logger *zap.Logger, instance *CfMinecraftInstance, basePath string) error {
-	logger.Debug("preparing mods")
+	logger.Info("Preparing mods")
 
 	modsPath := filepath.Join(basePath, ModsSubdir)
 
@@ -137,7 +137,7 @@ func PrepareModFile(logger *zap.Logger, modPath string, downloadUrl string) erro
 		return nil
 	}
 
-	logger.Info("Downloading mod", zap.String("url", downloadUrl))
+	logger.Debug("Downloading mod", zap.String("url", downloadUrl))
 	resp, err := http.Get(downloadUrl)
 	if err != nil {
 		return err

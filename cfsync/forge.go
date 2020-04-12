@@ -44,7 +44,7 @@ type ForgeVersion struct {
 // PrepareForge ensures the version of forge referenced by the given URL is available in the basePath.
 // Returns the filename of the forge server jar (relative to the basePath)
 func PrepareForge(logger *zap.Logger, forgeUrl string, basePath string) (string, error) {
-	logger.Debug("Preparing forge", zap.String("url", forgeUrl))
+	logger.Info("Preparing forge server")
 
 	parsedUrl, err := url.Parse(forgeUrl)
 	if err != nil {
@@ -59,14 +59,14 @@ func PrepareForge(logger *zap.Logger, forgeUrl string, basePath string) (string,
 		return "", fmt.Errorf("failed to check if forge jar already exists: %w", err)
 	}
 	if !exists {
-		logger.Info("Downloading forge", zap.String("url", forgeUrl))
+		logger.Debug("Downloading forge", zap.String("url", forgeUrl))
 		err = DownloadForge(forgeUrl, forgeFilePath)
 		if err != nil {
 			return "", fmt.Errorf("failed to download forge from %s: %w", forgeUrl, err)
 		}
 	}
 
-	logger.Debug("Preparing libraries for forge")
+	logger.Info("Preparing libraries for forge server")
 	err = PrepareLibrariesForForge(forgeFilePath, basePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to prepare libraries: %w", err)
