@@ -108,8 +108,18 @@ func TestPrepareMods(t *testing.T) {
 
 	err = os.MkdirAll(filepath.Join(outPath, cfsync.ModsSubdir), 0755)
 	require.NoError(t, err)
+
 	oldJarPath := filepath.Join(outPath, cfsync.ModsSubdir, "mod_old.jar")
 	err = ioutil.WriteFile(oldJarPath, []byte("old content"), 0644)
+	require.NoError(t, err)
+
+	oldFilePath := filepath.Join(outPath, cfsync.ModsSubdir, "testing.txt")
+	err = ioutil.WriteFile(oldFilePath, []byte("old content"), 0644)
+	require.NoError(t, err)
+
+	// ...and an existing directory, should be ignored
+	oldDirPath := filepath.Join(outPath, "ignoreThisDir")
+	err = os.Mkdir(oldDirPath, 0755)
 	require.NoError(t, err)
 
 	var instance cfsync.CfMinecraftInstance
@@ -134,9 +144,20 @@ func TestPrepareMods(t *testing.T) {
 	assertFileContent(t, filepath.Join(outPath, cfsync.ModsSubdir, "mod1.jar"), "/mod1.jar")
 	assertFileContent(t, filepath.Join(outPath, cfsync.ModsSubdir, "mod2.jar"), "/mod2.jar")
 
+	// old jar removed
 	exists, err := cfsync.FileExists(oldJarPath)
 	require.NoError(t, err)
 	assert.False(t, exists)
+
+	// old non-jar remains
+	exists, err = cfsync.FileExists(oldFilePath)
+	require.NoError(t, err)
+	assert.True(t, exists)
+
+	// and directory still there
+	exists, err = cfsync.FileExists(oldDirPath)
+	require.NoError(t, err)
+	assert.True(t, exists)
 }
 
 func TestPrepareInstance(t *testing.T) {

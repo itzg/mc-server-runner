@@ -3,7 +3,6 @@ package cfsync
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/karrick/godirwalk"
 	"go.uber.org/zap"
 	"io"
 	"net/http"
@@ -120,12 +119,33 @@ func PrepareMods(logger *zap.Logger, instance *CfMinecraftInstance, basePath str
 }
 
 func LocateExistingModFiles(modsPath string) (StringSet, error) {
-	names, err := godirwalk.ReadDirnames(modsPath, nil)
+
+	jars := make([]string, 0)
+
+	err := filepath.Walk(modsPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if modsPath != path && info.IsDir() {
+			return filepath.SkipDir
+		}
+
+		if !info.IsDir() && filepath.Ext(path) == ".jar" {
+			rel, err := filepath.Rel(modsPath, path)
+			if err != nil {
+				return err
+			}
+			jars = append(jars, rel)
+		}
+
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	return NewStringSet(names...), nil
+	return NewStringSet(jars...), nil
 }
 
 func PrepareModFile(logger *zap.Logger, modPath string, downloadUrl string) error {
