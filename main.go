@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"github.com/itzg/go-flagsfiller"
@@ -49,8 +48,6 @@ func main() {
 	}
 	defer logger.Sync()
 	logger = logger.Named("mc-server-runner")
-
-	ctx, cancel := context.WithCancel(context.Background())
 
 	var cmd *exec.Cmd
 
@@ -122,9 +119,24 @@ func main() {
 		}()
 	}
 
+	cmdExitChan := make(chan int, 1)
+
 	go func() {
-		cmd.Wait()
-		cancel()
+		waitErr := cmd.Wait()
+		if waitErr != nil {
+			if exitErr, ok := waitErr.(*exec.ExitError); ok {
+				exitCode := exitErr.ExitCode()
+				logger.Warn("sub-process failed",
+					zap.Int("exitCode", exitCode))
+				cmdExitChan <- exitCode
+			} else {
+				logger.Error("command failed abnormally", zap.Error(waitErr))
+				cmdExitChan <- 1
+			}
+			return
+		} else {
+			cmdExitChan <- 0
+		}
 	}()
 
 	for {
@@ -151,9 +163,9 @@ func main() {
 				})
 			}
 
-		case <-ctx.Done():
+		case exitCode := <-cmdExitChan:
 			logger.Info("Done")
-			return
+			os.Exit(exitCode)
 		}
 	}
 
