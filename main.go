@@ -19,12 +19,13 @@ import (
 )
 
 type Args struct {
-	Debug        bool          `usage:"Enable debug logging"`
-	Bootstrap    string        `usage:"Specifies a file with commands to initially send to the server"`
-	StopDuration time.Duration `usage:"Amount of time in Golang duration to wait after sending the 'stop' command."`
-	DetachStdin  bool          `usage:"Don't forward stdin and allow process to be put in background"`
-	Shell        string        `usage:"When set, pass the arguments to this shell"`
-	Cf           struct {
+	Debug                   bool          `usage:"Enable debug logging"`
+	Bootstrap               string        `usage:"Specifies a file with commands to initially send to the server"`
+	StopDuration            time.Duration `usage:"Amount of time in Golang duration to wait after sending the 'stop' command."`
+	StopServerAnnounceDelay time.Duration `default:"0s" usage:"Amount of time in Golang duration to wait after announcing server shutdown"`
+	DetachStdin             bool          `usage:"Don't forward stdin and allow process to be put in background"`
+	Shell                   string        `usage:"When set, pass the arguments to this shell"`
+	Cf                      struct {
 		InstanceFile string `usage:"Path to a Twitch/Curse minecraftinstance.json file for server setup"`
 	}
 }
