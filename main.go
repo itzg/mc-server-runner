@@ -143,6 +143,11 @@ func main() {
 	for {
 		select {
 		case <-signalChan:
+			if args.StopServerAnnounceDelay >= 0 {
+				announceStopViaConsole(logger, stdin, args.StopServerAnnounceDelay)
+				time.Sleep(args.StopServerAnnounceDelay)
+			}
+
 			if hasRconCli() {
 				err := stopWithRconCli()
 				if err != nil {
