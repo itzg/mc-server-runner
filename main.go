@@ -201,6 +201,14 @@ func stopWithRconCli() error {
 	return rconCliCmd.Run()
 }
 
+func announceStopViaConsole(logger *zap.Logger, stdin io.Writer, shutdownDelay time.Duration) {
+	logger.Info("Sending shutdown announce 'say' to Minecraft server...")
+	_, err := stdin.Write([]byte(fmt.Sprintf("say Server shutting down in %0.f seconds\n", shutdownDelay.Seconds())))
+	if err != nil {
+		logger.Error("ERROR failed to write say command to server console", zap.Error(err))
+	}
+}
+
 func stopViaConsole(logger *zap.Logger, stdin io.Writer) {
 	logger.Info("Sending 'stop' to Minecraft server...")
 	_, err := stdin.Write([]byte("stop\n"))
