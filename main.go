@@ -50,6 +50,7 @@ func main() {
 	}
 	defer logger.Sync()
 	logger = logger.Named("mc-server-runner")
+	logger.Info("startup")
 
 	var cmd *exec.Cmd
 
@@ -146,6 +147,7 @@ func main() {
 		case <-signalChan:
 			if args.StopServerAnnounceDelay >= 0 {
 				announceStopViaConsole(logger, stdin, args.StopServerAnnounceDelay)
+				logger.Info("Sleeping before server stop", zap.Duration("sleepTime", args.StopServerAnnounceDelay))
 				time.Sleep(args.StopServerAnnounceDelay)
 			}
 
@@ -208,7 +210,7 @@ func stopWithRconCli() error {
 }
 
 func announceStopViaConsole(logger *zap.Logger, stdin io.Writer, shutdownDelay time.Duration) {
-	logger.Info("Sending shutdown announce 'say' to Minecraft server...")
+	logger.Info("Sending shutdown announce 'say' to Minecraft server")
 	_, err := stdin.Write([]byte(fmt.Sprintf("say Server shutting down in %0.f seconds\n", shutdownDelay.Seconds())))
 	if err != nil {
 		logger.Error("ERROR failed to write say command to server console", zap.Error(err))
