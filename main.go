@@ -174,6 +174,7 @@ func main() {
 
 		case exitCode := <-cmdExitChan:
 			logger.Info("Done")
+			defer logger.Sync()
 			os.Exit(exitCode)
 		}
 	}
