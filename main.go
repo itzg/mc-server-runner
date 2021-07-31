@@ -145,7 +145,7 @@ func main() {
 	for {
 		select {
 		case <-signalChan:
-			if args.StopServerAnnounceDelay >= 0 {
+			if args.StopServerAnnounceDelay > 0 {
 				announceStopViaConsole(logger, stdin, args.StopServerAnnounceDelay)
 				logger.Info("Sleeping before server stop", zap.Duration("sleepTime", args.StopServerAnnounceDelay))
 				time.Sleep(args.StopServerAnnounceDelay)
