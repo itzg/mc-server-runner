@@ -3,10 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/itzg/go-flagsfiller"
-	"github.com/itzg/mc-server-runner/cfsync"
-	"github.com/itzg/zapconfigs"
-	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
 	"log"
@@ -16,15 +12,21 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/itzg/go-flagsfiller"
+	"github.com/itzg/mc-server-runner/cfsync"
+	"github.com/itzg/zapconfigs"
+	"go.uber.org/zap"
 )
 
 type Args struct {
-	Debug        bool          `usage:"Enable debug logging"`
-	Bootstrap    string        `usage:"Specifies a file with commands to initially send to the server"`
-	StopDuration time.Duration `usage:"Amount of time in Golang duration to wait after sending the 'stop' command."`
-	DetachStdin  bool          `usage:"Don't forward stdin and allow process to be put in background"`
-	Shell        string        `usage:"When set, pass the arguments to this shell"`
-	Cf           struct {
+	Debug                   bool          `usage:"Enable debug logging"`
+	Bootstrap               string        `usage:"Specifies a file with commands to initially send to the server"`
+	StopDuration            time.Duration `usage:"Amount of time in Golang duration to wait after sending the 'stop' command."`
+	StopServerAnnounceDelay time.Duration `default:"0s" usage:"Amount of time in Golang duration to wait after announcing server shutdown"`
+	DetachStdin             bool          `usage:"Don't forward stdin and allow process to be put in background"`
+	Shell                   string        `usage:"When set, pass the arguments to this shell"`
+	Cf                      struct {
 		InstanceFile string `usage:"Path to a Twitch/Curse minecraftinstance.json file for server setup"`
 	}
 }
@@ -130,7 +132,7 @@ func main() {
 					zap.Int("exitCode", exitCode))
 				cmdExitChan <- exitCode
 			} else {
-				logger.Error("command failed abnormally", zap.Error(waitErr))
+				logger.Error("Command failed abnormally", zap.Error(waitErr))
 				cmdExitChan <- 1
 			}
 			return
@@ -142,10 +144,16 @@ func main() {
 	for {
 		select {
 		case <-signalChan:
+			if args.StopServerAnnounceDelay > 0 {
+				announceStopViaConsole(logger, stdin, args.StopServerAnnounceDelay)
+				logger.Info("Sleeping before server stop", zap.Duration("sleepTime", args.StopServerAnnounceDelay))
+				time.Sleep(args.StopServerAnnounceDelay)
+			}
+
 			if hasRconCli() {
 				err := stopWithRconCli()
 				if err != nil {
-					logger.Error("ERROR Failed to stop using rcon-cli", zap.Error(err))
+					logger.Error("Failed to stop using rcon-cli", zap.Error(err))
 					stopViaConsole(logger, stdin)
 				}
 			} else {
@@ -155,16 +163,17 @@ func main() {
 			logger.Info("Waiting for completion...")
 			if args.StopDuration != 0 {
 				time.AfterFunc(args.StopDuration, func() {
-					logger.Error("ERROR Took too long, so killing server process")
+					logger.Error("Took too long, so killing server process")
 					err := cmd.Process.Kill()
 					if err != nil {
-						logger.Error("ERROR failed to forcefully kill process")
+						logger.Error("Failed to forcefully kill process")
 					}
 				})
 			}
 
 		case exitCode := <-cmdExitChan:
 			logger.Info("Done")
+			defer logger.Sync()
 			os.Exit(exitCode)
 		}
 	}
@@ -200,11 +209,19 @@ func stopWithRconCli() error {
 	return rconCliCmd.Run()
 }
 
+func announceStopViaConsole(logger *zap.Logger, stdin io.Writer, shutdownDelay time.Duration) {
+	logger.Info("Sending shutdown announce 'say' to Minecraft server")
+	_, err := stdin.Write([]byte(fmt.Sprintf("say Server shutting down in %0.f seconds\n", shutdownDelay.Seconds())))
+	if err != nil {
+		logger.Error("Failed to write say command to server console", zap.Error(err))
+	}
+}
+
 func stopViaConsole(logger *zap.Logger, stdin io.Writer) {
 	logger.Info("Sending 'stop' to Minecraft server...")
 	_, err := stdin.Write([]byte("stop\n"))
 	if err != nil {
-		logger.Error("ERROR failed to write stop command to server console", zap.Error(err))
+		logger.Error("Failed to write stop command to server console", zap.Error(err))
 	}
 }
 
