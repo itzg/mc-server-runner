@@ -12,17 +12,17 @@ to ensure the Minecraft server is stopped gracefully when the container is sent 
 
 ```
   -bootstrap string
-    	Specifies a file with commands to initially send to the server
-  -cf-instance-file string
-    	Path to a Twitch/Curse minecraftinstance.json file for server setup
+        Specifies a file with commands to initially send to the server
   -debug
-    	Enable debug logging
+        Enable debug logging
   -detach-stdin
-    	Don't forward stdin and allow process to be put in background
+        Don't forward stdin and allow process to be put in background
   -shell string
-    	When set, pass the arguments to this shell
+        When set, pass the arguments to this shell
   -stop-duration duration
-    	Amount of time in Golang duration to wait after sending the 'stop' command.
+        Amount of time in Golang duration to wait after sending the 'stop' command.
+  -stop-server-announce-delay duration
+        Amount of time in Golang duration to wait after announcing server shutdown
 ```
 
 ## Development Testing
