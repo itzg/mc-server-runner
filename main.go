@@ -50,7 +50,6 @@ func main() {
 	}
 	defer logger.Sync()
 	logger = logger.Named("mc-server-runner")
-	logger.Info("startup")
 
 	var cmd *exec.Cmd
 
@@ -133,7 +132,7 @@ func main() {
 					zap.Int("exitCode", exitCode))
 				cmdExitChan <- exitCode
 			} else {
-				logger.Error("command failed abnormally", zap.Error(waitErr))
+				logger.Error("Command failed abnormally", zap.Error(waitErr))
 				cmdExitChan <- 1
 			}
 			return
@@ -154,7 +153,7 @@ func main() {
 			if hasRconCli() {
 				err := stopWithRconCli()
 				if err != nil {
-					logger.Error("ERROR Failed to stop using rcon-cli", zap.Error(err))
+					logger.Error("Failed to stop using rcon-cli", zap.Error(err))
 					stopViaConsole(logger, stdin)
 				}
 			} else {
@@ -164,10 +163,10 @@ func main() {
 			logger.Info("Waiting for completion...")
 			if args.StopDuration != 0 {
 				time.AfterFunc(args.StopDuration, func() {
-					logger.Error("ERROR Took too long, so killing server process")
+					logger.Error("Took too long, so killing server process")
 					err := cmd.Process.Kill()
 					if err != nil {
-						logger.Error("ERROR failed to forcefully kill process")
+						logger.Error("Failed to forcefully kill process")
 					}
 				})
 			}
@@ -214,7 +213,7 @@ func announceStopViaConsole(logger *zap.Logger, stdin io.Writer, shutdownDelay t
 	logger.Info("Sending shutdown announce 'say' to Minecraft server")
 	_, err := stdin.Write([]byte(fmt.Sprintf("say Server shutting down in %0.f seconds\n", shutdownDelay.Seconds())))
 	if err != nil {
-		logger.Error("ERROR failed to write say command to server console", zap.Error(err))
+		logger.Error("Failed to write say command to server console", zap.Error(err))
 	}
 }
 
@@ -222,7 +221,7 @@ func stopViaConsole(logger *zap.Logger, stdin io.Writer) {
 	logger.Info("Sending 'stop' to Minecraft server...")
 	_, err := stdin.Write([]byte("stop\n"))
 	if err != nil {
-		logger.Error("ERROR failed to write stop command to server console", zap.Error(err))
+		logger.Error("Failed to write stop command to server console", zap.Error(err))
 	}
 }
 
