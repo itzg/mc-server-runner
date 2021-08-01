@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/itzg/go-flagsfiller"
-	"github.com/itzg/mc-server-runner/cfsync"
 	"github.com/itzg/zapconfigs"
 	"go.uber.org/zap"
 )
@@ -26,9 +25,6 @@ type Args struct {
 	StopServerAnnounceDelay time.Duration `default:"0s" usage:"Amount of time in Golang duration to wait after announcing server shutdown"`
 	DetachStdin             bool          `usage:"Don't forward stdin and allow process to be put in background"`
 	Shell                   string        `usage:"When set, pass the arguments to this shell"`
-	Cf                      struct {
-		InstanceFile string `usage:"Path to a Twitch/Curse minecraftinstance.json file for server setup"`
-	}
 }
 
 func main() {
@@ -57,24 +53,10 @@ func main() {
 		logger.Fatal("Missing executable arguments")
 	}
 
-	if args.Cf.InstanceFile != "" {
-		serverJar, err := cfsync.PrepareInstanceFromFile(logger.Named("cfsync"), args.Cf.InstanceFile, ".")
-		if err != nil {
-			logger.Fatal("Failed to prepare instance", zap.Error(err))
-		}
-
-		args, err := fillServerJar(flag.Args()[1:], serverJar)
-		if err != nil {
-			logger.Fatal("Invalid arguments", zap.Error(err))
-		}
-
-		cmd = exec.Command(flag.Arg(0), args...)
+	if args.Shell != "" {
+		cmd = exec.Command(args.Shell, flag.Args()...)
 	} else {
-		if args.Shell != "" {
-			cmd = exec.Command(args.Shell, flag.Args()...)
-		} else {
-			cmd = exec.Command(flag.Arg(0), flag.Args()[1:]...)
-		}
+		cmd = exec.Command(flag.Arg(0), flag.Args()[1:]...)
 	}
 
 	stdin, err := cmd.StdinPipe()
