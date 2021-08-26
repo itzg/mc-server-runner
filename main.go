@@ -172,23 +172,33 @@ func hasRconCli() bool {
 }
 
 func stopWithRconCli() error {
-	port := os.Getenv("RCON_PORT")
-	if port == "" {
-		port = "25575"
-	}
-
-	password := os.Getenv("RCON_PASSWORD")
-	if password == "" {
-		password = "minecraft"
-	}
-
 	log.Println("Stopping with rcon-cli")
-	rconCliCmd := exec.Command("rcon-cli",
-		"--port", port,
-		"--password", password,
-		"stop")
 
-	return rconCliCmd.Run()
+	rconConfigFile := os.Getenv("RCON_CONFIG_FILE")
+	if rconConfigFile == "" {
+		port := os.Getenv("RCON_PORT")
+		if port == "" {
+			port = "25575"
+		}
+
+		password := os.Getenv("RCON_PASSWORD")
+		if password == "" {
+			password = "minecraft"
+		}
+
+		rconCliCmd := exec.Command("rcon-cli",
+			"--port", port,
+			"--password", password,
+			"stop")
+
+		return rconCliCmd.Run()
+	} else {
+		rconCliCmd := exec.Command("rcon-cli",
+			"--config", rconConfigFile,
+			"stop")
+
+		return rconCliCmd.Run()
+	}
 }
 
 func announceStopViaConsole(logger *zap.Logger, stdin io.Writer, shutdownDelay time.Duration) {
