@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -25,6 +26,7 @@ type Args struct {
 	StopServerAnnounceDelay time.Duration `default:"0s" usage:"Amount of time in Golang duration to wait after announcing server shutdown"`
 	DetachStdin             bool          `usage:"Don't forward stdin and allow process to be put in background"`
 	Shell                   string        `usage:"When set, pass the arguments to this shell"`
+	NamedPipe               string        `usage:"Optional path to create and read a named pipe for console input"`
 }
 
 func main() {
@@ -103,6 +105,15 @@ func main() {
 		}()
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+
+	if args.NamedPipe != "" {
+		err2 := handleNamedPipe(ctx, args.NamedPipe, stdin)
+		if err2 != nil {
+			logger.Fatal("Failed to setup named pipe", zap.Error(err2))
+		}
+	}
+
 	cmdExitChan := make(chan int, 1)
 
 	go func() {
@@ -154,8 +165,8 @@ func main() {
 			}
 
 		case exitCode := <-cmdExitChan:
+			cancel()
 			logger.Info("Done")
-			defer logger.Sync()
 			os.Exit(exitCode)
 		}
 	}
@@ -214,24 +225,5 @@ func stopViaConsole(logger *zap.Logger, stdin io.Writer) {
 	_, err := stdin.Write([]byte("stop\n"))
 	if err != nil {
 		logger.Error("Failed to write stop command to server console", zap.Error(err))
-	}
-}
-
-func fillServerJar(args []string, serverJar string) ([]string, error) {
-	result := make([]string, len(args))
-	found := false
-	for i, arg := range args {
-		if arg == "_SERVERJAR_" {
-			found = true
-			result[i] = serverJar
-		} else {
-			result[i] = arg
-		}
-	}
-
-	if !found {
-		return nil, fmt.Errorf("unable to locate _SERVERJAR_ placeholder in args")
-	} else {
-		return result, nil
 	}
 }
