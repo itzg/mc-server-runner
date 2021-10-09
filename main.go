@@ -106,9 +106,10 @@ func main() {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+	errors := make(chan error, 1)
 
 	if args.NamedPipe != "" {
-		err2 := handleNamedPipe(ctx, args.NamedPipe, stdin)
+		err2 := handleNamedPipe(ctx, args.NamedPipe, stdin, errors)
 		if err2 != nil {
 			logger.Fatal("Failed to setup named pipe", zap.Error(err2))
 		}
@@ -163,6 +164,9 @@ func main() {
 					}
 				})
 			}
+
+		case namedPipeErr := <-errors:
+			logger.Error("Error during named pipe handling", zap.Error(namedPipeErr))
 
 		case exitCode := <-cmdExitChan:
 			cancel()

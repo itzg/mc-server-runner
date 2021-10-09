@@ -8,7 +8,7 @@ import (
 	"syscall"
 )
 
-func handleNamedPipe(ctx context.Context, path string, stdin io.Writer) error {
+func handleNamedPipe(ctx context.Context, path string, stdin io.Writer, errors chan error) error {
 	fi, statErr := os.Stat(path)
 	if statErr != nil {
 		if os.IsNotExist(statErr) {
@@ -26,21 +26,29 @@ func handleNamedPipe(ctx context.Context, path string, stdin io.Writer) error {
 		}
 	}
 
-	f, openErr := os.Open(path)
-	if openErr != nil {
-		return fmt.Errorf("failed to open named pipe: %w", openErr)
-	}
-
 	go func() {
-		_, _ = io.Copy(stdin, f)
-		// copy finished due to file closure (or error)
-		os.Remove(path)
-	}()
+		//goland:noinspection GoUnhandledErrorResult
+		defer os.Remove(path)
 
-	go func() {
-		<-ctx.Done()
-		// kick the copy operation above
-		f.Close()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+
+			default:
+				f, openErr := os.Open(path)
+				if openErr != nil {
+					errors <- fmt.Errorf("failed to open named fifo: %w", openErr)
+					return
+				}
+
+				_, copyErr := io.Copy(stdin, f)
+				if copyErr != nil {
+					errors <- fmt.Errorf("unexpected error reading named pipe: %w", copyErr)
+				}
+				f.Close()
+			}
+		}
 	}()
 
 	return nil
