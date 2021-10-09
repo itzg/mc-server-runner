@@ -66,15 +66,9 @@ func main() {
 		logger.Error("Unable to get stdin", zap.Error(err))
 	}
 
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		logger.Error("Unable to get stdout", zap.Error(err))
-	}
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		logger.Error("Unable to get stderr", zap.Error(err))
-	}
+	// directly assign stdout/err to pass through terminal, if applicable
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	err = cmd.Start()
 	if err != nil {
@@ -92,13 +86,7 @@ func main() {
 		}
 	}
 
-	// Relay stdin/out/err between outside and server
-	go func() {
-		io.Copy(os.Stdout, stdout)
-	}()
-	go func() {
-		io.Copy(os.Stderr, stderr)
-	}()
+	// Relay stdin between outside and server
 	if !args.DetachStdin {
 		go func() {
 			io.Copy(stdin, os.Stdin)
