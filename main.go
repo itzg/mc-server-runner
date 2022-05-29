@@ -110,7 +110,7 @@ func main() {
 		if waitErr != nil {
 			if exitErr, ok := waitErr.(*exec.ExitError); ok {
 				exitCode := exitErr.ExitCode()
-				logger.Warn("sub-process failed",
+				logger.Warn("Minecraft server process failed",
 					zap.Int("exitCode", exitCode))
 				cmdExitChan <- exitCode
 			} else {
