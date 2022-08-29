@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/itzg/go-flagsfiller v1.9.1
 	github.com/itzg/zapconfigs v0.1.0
-	go.uber.org/zap v1.22.0
+	go.uber.org/zap v1.23.0
 )
 
 require (
