@@ -113,7 +113,7 @@ func main() {
 		if waitErr != nil {
 			if exitErr, ok := waitErr.(*exec.ExitError); ok {
 				exitCode := exitErr.ExitCode()
-				logger.Warn("Minecraft server failed. Look above for errors that indicate cause. DO NOT report this line as an error.",
+				logger.Warn("Minecraft server failed. Inspect logs above for errors that indicate cause. DO NOT report this line as an error.",
 					zap.Int("exitCode", exitCode))
 				cmdExitChan <- exitCode
 			} else {
