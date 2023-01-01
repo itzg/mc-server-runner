@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -46,6 +45,7 @@ func main() {
 	} else {
 		logger = zapconfigs.NewDefaultLogger()
 	}
+	//goland:noinspection GoUnhandledErrorResult
 	defer logger.Sync()
 	logger = logger.Named("mc-server-runner")
 
@@ -76,7 +76,7 @@ func main() {
 	}
 
 	if args.Bootstrap != "" {
-		bootstrapContent, err := ioutil.ReadFile(args.Bootstrap)
+		bootstrapContent, err := os.ReadFile(args.Bootstrap)
 		if err != nil {
 			logger.Error("Failed to read bootstrap commands", zap.Error(err))
 		}
@@ -89,7 +89,10 @@ func main() {
 	// Relay stdin between outside and server
 	if !args.DetachStdin {
 		go func() {
-			io.Copy(stdin, os.Stdin)
+			_, err := io.Copy(stdin, os.Stdin)
+			if err != nil {
+				logger.Error("Failed to relay standard input", zap.Error(err))
+			}
 		}()
 	}
 
@@ -110,7 +113,7 @@ func main() {
 		if waitErr != nil {
 			if exitErr, ok := waitErr.(*exec.ExitError); ok {
 				exitCode := exitErr.ExitCode()
-				logger.Warn("Minecraft server process failed",
+				logger.Warn("Minecraft server failed. Inspect logs above for errors that indicate cause. DO NOT report this line as an error.",
 					zap.Int("exitCode", exitCode))
 				cmdExitChan <- exitCode
 			} else {
