@@ -7,8 +7,8 @@ github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/google/renameio v0.1.0/go.mod h1:KWCgfxg9yswjAJkECMjeO8J8rahYeXnNhOm40UhjYkI=
 github.com/iancoleman/strcase v0.2.0 h1:05I4QRnGpI0m37iZQRuskXh+w77mr6Z41lwQzuHLwW0=
 github.com/iancoleman/strcase v0.2.0/go.mod h1:iwCmte+B7n89clKwxIoIXy/HfoL7AsD47ZCWhYzw7ho=
-github.com/itzg/go-flagsfiller v1.9.2 h1:ialZGSqi6Er96/S2YQZtD3RRogfXJvol4vQhFiRGe1w=
-github.com/itzg/go-flagsfiller v1.9.2/go.mod h1:gp16qla63sLpI6LPy64BuUQ58G7z990XujOd09QmyM0=
+github.com/itzg/go-flagsfiller v1.11.0 h1:oJ+b33vD70Da+895GDNAS8rnVrnw9alqHGVnJi4pFeI=
+github.com/itzg/go-flagsfiller v1.11.0/go.mod h1:UiVrljtty+R4Xv4esjExmez4EYDaz5BBF0Fs68qf3aM=
 github.com/itzg/zapconfigs v0.1.0 h1:Gokocm8VaTNnZjvIiVA5NEhzZ1v7lEyXY/AbeBmq6YQ=
 github.com/itzg/zapconfigs v0.1.0/go.mod h1:y4dArgRUOFbGRkUNJ8XSSw98FGn03wtkvMPy+OSA5Rc=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=

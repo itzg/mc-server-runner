@@ -3,7 +3,7 @@ module github.com/itzg/mc-server-runner
 go 1.17
 
 require (
-	github.com/itzg/go-flagsfiller v1.9.2
+	github.com/itzg/go-flagsfiller v1.11.0
 	github.com/itzg/zapconfigs v0.1.0
 	go.uber.org/zap v1.24.0
 )
