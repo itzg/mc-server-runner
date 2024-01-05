@@ -24,6 +24,7 @@ type Args struct {
 	StopDuration            time.Duration `usage:"Amount of time in Golang duration to wait after sending the 'stop' command."`
 	StopServerAnnounceDelay time.Duration `default:"0s" usage:"Amount of time in Golang duration to wait after announcing server shutdown"`
 	DetachStdin             bool          `usage:"Don't forward stdin and allow process to be put in background"`
+	RemoteConsole           bool          `usage:"Allow remote shell connections over SSH to server console"`
 	Shell                   string        `usage:"When set, pass the arguments to this shell"`
 	NamedPipe               string        `usage:"Optional path to create and read a named pipe for console input"`
 }
@@ -66,9 +67,15 @@ func main() {
 		logger.Error("Unable to get stdin", zap.Error(err))
 	}
 
-	// directly assign stdout/err to pass through terminal, if applicable
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		logger.Error("Unable to get stdout", zap.Error(err))
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		logger.Error("Unable to get stderr", zap.Error(err))
+	}
 
 	err = cmd.Start()
 	if err != nil {
@@ -86,14 +93,19 @@ func main() {
 		}
 	}
 
+	console := makeConsole(stdin, stdout, stderr)
+
 	// Relay stdin between outside and server
 	if !args.DetachStdin {
-		go func() {
-			_, err := io.Copy(stdin, os.Stdin)
-			if err != nil {
-				logger.Error("Failed to relay standard input", zap.Error(err))
-			}
-		}()
+		go stdInRoutine(os.Stdin, &console, logger)
+	}
+
+	go stdOutRoutine(os.Stdout, &console, logger)
+	go stdErrRoutine(os.Stderr, &console, logger)
+
+	// Start the remote server if intended
+	if args.RemoteConsole {
+		go startRemoteShellServer(&console, logger)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
