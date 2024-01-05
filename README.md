@@ -27,13 +27,13 @@ to ensure the Minecraft server is stopped gracefully when the container is sent 
 
 ## Development Testing
 
-Start a golang container for building and execution:
-
+Start a golang container for building and execution. The port is only needed for remote console functionality:
 
 ```bash
 docker run -it --rm \
   -v ${PWD}:/build \
   -w /build \
+  -p 2222:2222 \
   golang:1.19
 ```
 
@@ -42,6 +42,9 @@ Within that container, build/test by running:
 ```bash
 go run . test/dump.sh
 go run . test/bash-only.sh
+# Used to test remote console functionality
+# Connect to this using an ssh client from outside the container to ensure two-way communication works
+go run . -remote-console /usr/bin/sh
 # The following should fail
 go run . --shell sh test/bash-only.sh
 ```
