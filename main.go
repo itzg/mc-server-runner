@@ -97,15 +97,15 @@ func main() {
 
 	// Relay stdin between outside and server
 	if !args.DetachStdin {
-		go stdInRoutine(os.Stdin, &console, logger)
+		go consoleInRoutine(os.Stdin, console, logger)
 	}
 
-	go stdOutRoutine(os.Stdout, &console, logger)
-	go stdErrRoutine(os.Stderr, &console, logger)
+	go consoleOutRoutine(os.Stdout, console, stdOutTarget, logger)
+	go consoleOutRoutine(os.Stderr, console, stdErrTarget, logger)
 
 	// Start the remote server if intended
 	if args.RemoteConsole {
-		go startRemoteShellServer(&console, logger)
+		go startRemoteShellServer(console, logger)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
