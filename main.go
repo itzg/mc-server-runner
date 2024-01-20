@@ -155,7 +155,7 @@ func main() {
 		select {
 		case <-signalChan:
 			if args.StopServerAnnounceDelay > 0 {
-				announceStopViaConsole(logger, stdin, args.StopServerAnnounceDelay)
+				announceStop(logger, stdin, args.StopServerAnnounceDelay)
 				logger.Info("Sleeping before server stop", zap.Duration("sleepTime", args.StopServerAnnounceDelay))
 				time.Sleep(args.StopServerAnnounceDelay)
 			}
@@ -209,9 +209,7 @@ func hasRconCli() bool {
 	}
 }
 
-func stopWithRconCli() error {
-	log.Println("Stopping with rcon-cli")
-
+func sendRconCommand(cmd ...string) error {
 	rconConfigFile := os.Getenv("RCON_CONFIG_FILE")
 	if rconConfigFile == "" {
 		port := os.Getenv("RCON_PORT")
@@ -224,23 +222,39 @@ func stopWithRconCli() error {
 			password = "minecraft"
 		}
 
-		rconCliCmd := exec.Command("rcon-cli",
-			"--port", port,
-			"--password", password,
-			"stop")
+		args := []string{"--port", port,
+			"--password", password}
+		args = append(args, cmd...)
+
+		rconCliCmd := exec.Command("rcon-cli", args...)
 
 		return rconCliCmd.Run()
 	} else {
-		rconCliCmd := exec.Command("rcon-cli",
-			"--config", rconConfigFile,
-			"stop")
+
+		args := []string{"--config", rconConfigFile}
+		args = append(args, cmd...)
+
+		rconCliCmd := exec.Command("rcon-cli", args...)
 
 		return rconCliCmd.Run()
 	}
 }
 
-func announceStopViaConsole(logger *zap.Logger, stdin io.Writer, shutdownDelay time.Duration) {
+func stopWithRconCli() error {
+	log.Println("Stopping with rcon-cli")
+
+	return sendRconCommand("stop")
+}
+
+func announceStop(logger *zap.Logger, stdin io.Writer, shutdownDelay time.Duration) {
 	logger.Info("Sending shutdown announce 'say' to Minecraft server")
+	if hasRconCli() {
+		err := sendRconCommand("say", fmt.Sprintf("Server shutting down in %0.f seconds", shutdownDelay.Seconds()))
+		if err != nil {
+			logger.Error("Failed to send 'say' command", zap.Error(err))
+		}
+	}
+
 	_, err := stdin.Write([]byte(fmt.Sprintf("say Server shutting down in %0.f seconds\n", shutdownDelay.Seconds())))
 	if err != nil {
 		logger.Error("Failed to write say command to server console", zap.Error(err))
