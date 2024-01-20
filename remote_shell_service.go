@@ -183,7 +183,7 @@ func consoleOutRoutine(output io.Writer, console *Console, target ConsoleTarget,
 
 // Use os.Stdin for console.
 func consoleInRoutine(stdIn io.Reader, console *Console, logger *zap.Logger) {
-	scanner := bufio.NewScanner(os.Stdin)
+	scanner := bufio.NewScanner(stdIn)
 	for scanner.Scan() {
 		text := scanner.Text()
 		outBytes := []byte(fmt.Sprintf("%s\n", text))
@@ -229,7 +229,7 @@ func ensureHostKey(logger *zap.Logger) (string, error) {
 	return keyfilePath, err
 }
 
-func startRemoteShellServer(console *Console, logger *zap.Logger) {
+func runRemoteShellServer(console *Console, logger *zap.Logger) {
 	logger.Info("Starting remote shell server on 2222...")
 	ssh.Handle(func(s ssh.Session) { handleSession(s, console, logger) })
 

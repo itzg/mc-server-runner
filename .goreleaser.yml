@@ -10,13 +10,12 @@ builds:
 - goos:
   - linux
   goarch:
-  - 386
   - amd64
   - arm
   - arm64
   goarm:
-  - 6
-  - 7
+  - "6"
+  - "7"
   main: .
   env:
     - CGO_ENABLED=0
@@ -25,8 +24,6 @@ archives:
   - format_overrides:
       - goos: windows
         format: zip
-snapshot:
-  name_template: SNAPSHOT-{{ .Commit }}
 changelog:
   filters:
     exclude:
