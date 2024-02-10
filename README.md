@@ -48,3 +48,15 @@ go run . -remote-console /usr/bin/sh
 # The following should fail
 go run . --shell sh test/bash-only.sh
 ```
+
+### Using the devcontainer's Dockerfile
+
+#### With IntelliJ
+
+Create a "Go Build" run configuration
+
+![](notes/dockerfile-run-config.png)
+
+with a Dockerfile target
+
+![](notes/dockerfile-docker-target.png)

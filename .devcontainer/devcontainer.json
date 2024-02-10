@@ -6,9 +6,7 @@
 		"dockerfile": "Dockerfile",
 		"args": {
 			// Update the VARIANT arg to pick a version of Go: 1, 1.16, 1.17
-			"VARIANT": "1.17",
-			// Options
-			"NODE_VERSION": "lts/*"
+			"VARIANT": "1.21"
 		}
 	},
 	"runArgs": [ "--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined" ],

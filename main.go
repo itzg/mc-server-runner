@@ -98,7 +98,7 @@ func main() {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 
-		if hasRconCli() {
+		if hasRconCli() && args.NamedPipe == "" {
 			logger.Debug("Directly assigning stdin")
 			cmd.Stdin = os.Stdin
 			stdin = os.Stdin
@@ -240,25 +240,29 @@ func sendRconCommand(cmd ...string) error {
 	}
 }
 
-func stopWithRconCli() error {
-	log.Println("Stopping with rcon-cli")
-
-	return sendRconCommand("stop")
+// sendCommand will send the given command via RCON when available, otherwise it will write to the given stdin
+func sendCommand(stdin io.Writer, cmd ...string) error {
+	if hasRconCli() {
+		return sendRconCommand(cmd...)
+	} else {
+		_, err := stdin.Write([]byte(strings.Join(cmd, " ")))
+		return err
+	}
 }
 
 func announceStop(logger *zap.Logger, stdin io.Writer, shutdownDelay time.Duration) {
 	logger.Info("Sending shutdown announce 'say' to Minecraft server")
-	if hasRconCli() {
-		err := sendRconCommand("say", fmt.Sprintf("Server shutting down in %0.f seconds", shutdownDelay.Seconds()))
-		if err != nil {
-			logger.Error("Failed to send 'say' command", zap.Error(err))
-		}
-	}
 
-	_, err := stdin.Write([]byte(fmt.Sprintf("say Server shutting down in %0.f seconds\n", shutdownDelay.Seconds())))
+	err := sendCommand(stdin, "say", fmt.Sprintf("Server shutting down in %0.f seconds", shutdownDelay.Seconds()))
 	if err != nil {
-		logger.Error("Failed to write say command to server console", zap.Error(err))
+		logger.Error("Failed to send 'say' command", zap.Error(err))
 	}
+}
+
+func stopWithRconCli() error {
+	log.Println("Stopping with rcon-cli")
+
+	return sendRconCommand("stop")
 }
 
 func stopViaConsole(logger *zap.Logger, stdin io.Writer) {
