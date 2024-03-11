@@ -363,13 +363,14 @@ func ensureHostKeys(logger *zap.Logger) (*hostKeys, error) {
 
 	keyfilePath := pickHostKeyPath(homeDir)
 	defaultKeyfilePath := filepath.Join(homeDir, HostKeyFilename)
+	fileChanged := keyfilePath != defaultKeyfilePath
 	_, err = os.Stat(keyfilePath)
 	if os.IsNotExist(err) {
 		logger.Info("Generating host keys for remote shell server.")
 		var hostKeys hostKeys
-		shouldWrite, err := populateKeys(&hostKeys, logger)
+		addedKeys, err := populateKeys(&hostKeys, logger)
 
-		if shouldWrite && err == nil {
+		if (fileChanged || addedKeys) && err == nil {
 			writeKeys(defaultKeyfilePath, &hostKeys, logger)
 		}
 		return &hostKeys, err
@@ -381,9 +382,9 @@ func ensureHostKeys(logger *zap.Logger) (*hostKeys, error) {
 		}
 
 		// Populate missing keys (older files only have RSA)
-		shouldWrite, err := populateKeys(hostKeys, logger)
+		addedKeys, err := populateKeys(hostKeys, logger)
 
-		if shouldWrite && err == nil {
+		if (fileChanged || addedKeys) && err == nil {
 			writeKeys(defaultKeyfilePath, hostKeys, logger)
 		}
 		return hostKeys, err
