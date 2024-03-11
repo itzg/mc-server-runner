@@ -258,28 +258,31 @@ type hostKeys struct {
 	ecKey  *ecdsa.PrivateKey
 }
 
-func populateKeys(keys *hostKeys, logger *zap.Logger) error {
+func populateKeys(keys *hostKeys, logger *zap.Logger) (bool, error) {
+	didAdd := false
 	if keys.ecKey == nil {
 		logger.Info("Generating ECDSA SSH Host Key")
 		ellipticKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 		if err != nil {
-			return err
+			return didAdd, err
 		}
 
 		keys.ecKey = ellipticKey
+		didAdd = true
 	}
 
 	if keys.rsaKey == nil {
 		logger.Info("Generating RSA SSH Host Key")
 		rsaKey, err := rsa.GenerateKey(rand.Reader, 4096)
 		if err != nil {
-			return err
+			return didAdd, err
 		}
 
 		keys.rsaKey = rsaKey
+		didAdd = true
 	}
 
-	return nil
+	return didAdd, nil
 }
 
 func writeKeys(hostKeyPath string, keys *hostKeys, logger *zap.Logger) error {
@@ -364,9 +367,11 @@ func ensureHostKeys(logger *zap.Logger) (*hostKeys, error) {
 	if os.IsNotExist(err) {
 		logger.Info("Generating host keys for remote shell server.")
 		var hostKeys hostKeys
-		err := populateKeys(&hostKeys, logger)
+		shouldWrite, err := populateKeys(&hostKeys, logger)
 
-		writeKeys(defaultKeyfilePath, &hostKeys, logger)
+		if shouldWrite && err == nil {
+			writeKeys(defaultKeyfilePath, &hostKeys, logger)
+		}
 		return &hostKeys, err
 	} else {
 		logger.Info(fmt.Sprintf("Reading host keys for remote shell from %s.", keyfilePath))
@@ -376,8 +381,11 @@ func ensureHostKeys(logger *zap.Logger) (*hostKeys, error) {
 		}
 
 		// Populate missing keys (older files only have RSA)
-		err = populateKeys(hostKeys, logger)
-		writeKeys(defaultKeyfilePath, hostKeys, logger)
+		shouldWrite, err := populateKeys(hostKeys, logger)
+
+		if shouldWrite && err == nil {
+			writeKeys(defaultKeyfilePath, hostKeys, logger)
+		}
 		return hostKeys, err
 	}
 }
