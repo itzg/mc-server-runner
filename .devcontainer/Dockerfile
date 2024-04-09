@@ -1,7 +1,7 @@
 # See here for image contents: https://github.com/microsoft/vscode-dev-containers/tree/v0.194.3/containers/go/.devcontainer/base.Dockerfile
 
 # [Choice] Go version: 1, 1.16, 1.17
-ARG VARIANT="1.21"
+ARG VARIANT="1.22"
 FROM mcr.microsoft.com/vscode/devcontainers/go:1-${VARIANT}
 
 # [Choice] Node.js version: none, lts/*, 16, 14, 12, 10
