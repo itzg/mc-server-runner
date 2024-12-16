@@ -17,7 +17,7 @@ require (
 )
 
 require (
-	github.com/gliderlabs/ssh v0.3.7
+	github.com/gliderlabs/ssh v0.3.8
 	github.com/iancoleman/strcase v0.3.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 )
