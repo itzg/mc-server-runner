@@ -25,6 +25,9 @@ to ensure the Minecraft server is stopped gracefully when the container is sent 
         Amount of time in Golang duration to wait after announcing server shutdown
 ```
 
+The `-stop-server-announce-delay` can by bypassed by sending a `SIGUSR1` signal to the `mc-server-runner` process.  
+This works in cases where a prior `SIGTERM` has already been sent **and** in cases where no prior signal has been sent.
+
 ## Development Testing
 
 Start a golang container for building and execution. The port is only needed for remote console functionality:
