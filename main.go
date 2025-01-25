@@ -31,9 +31,13 @@ type Args struct {
 }
 
 func main() {
-	signalChan := make(chan os.Signal, 1)
 	// docker stop sends a SIGTERM, so intercept that and send a 'stop' command to the server
-	signal.Notify(signalChan, syscall.SIGTERM)
+	termChan := make(chan os.Signal, 1)
+	signal.Notify(termChan, syscall.SIGTERM)
+
+	// Additionally intercept SIGUSR1 which bypasses StopServerAnnounceDelay (in cases where SIGTERM has **and** hasn't been sent)
+	usr1Chan := make(chan os.Signal, 1)
+	signal.Notify(usr1Chan, syscall.SIGUSR1)
 
 	var args Args
 	err := flagsfiller.Parse(&args)
@@ -151,34 +155,35 @@ func main() {
 		}
 	}()
 
+	var timer *time.Timer
+
 	for {
 		select {
-		case <-signalChan:
+		case <-termChan:
+			logger.Debug("SIGTERM caught")
+			logger.Info("gracefully stopping server...")
 			if args.StopServerAnnounceDelay > 0 {
 				announceStop(logger, stdin, args.StopServerAnnounceDelay)
 				logger.Info("Sleeping before server stop", zap.Duration("sleepTime", args.StopServerAnnounceDelay))
-				time.Sleep(args.StopServerAnnounceDelay)
+				timer = time.AfterFunc(args.StopServerAnnounceDelay, func() {
+					logger.Info("StopServerAnnounceDelay elapsed, stopping server")
+					terminate(logger, stdin, cmd, args.StopDuration)
+				})
+			} else {
+				terminate(logger, stdin, cmd, args.StopDuration)
 			}
 
-			if hasRconCli() {
-				err := stopWithRconCli()
-				if err != nil {
-					logger.Error("Failed to stop using rcon-cli", zap.Error(err))
-					stopViaConsole(logger, stdin)
+		case <-usr1Chan:
+			if timer != nil {
+				if timer.Stop() {
+					logger.Info("SIGUSR1 caught, bypassing running StopServerAnnounceDelay")
+					terminate(logger, stdin, cmd, args.StopDuration)
+				} else {
+					logger.Info("SIGUSR1 caught, StopServerAnnounceDelay already elapsed, server is already stopping")
 				}
 			} else {
-				stopViaConsole(logger, stdin)
-			}
-
-			logger.Info("Waiting for completion...")
-			if args.StopDuration != 0 {
-				time.AfterFunc(args.StopDuration, func() {
-					logger.Error("Took too long, so killing server process")
-					err := cmd.Process.Kill()
-					if err != nil {
-						logger.Error("Failed to forcefully kill process")
-					}
-				})
+				logger.Info("SIGUSR1 caught, gracefully stopping server... (without StopServerAnnounceDelay)")
+				terminate(logger, stdin, cmd, args.StopDuration)
 			}
 
 		case namedPipeErr := <-errorChan:
@@ -247,6 +252,30 @@ func sendCommand(stdin io.Writer, cmd ...string) error {
 	} else {
 		_, err := stdin.Write([]byte(strings.Join(cmd, " ")))
 		return err
+	}
+}
+
+// terminate sends `stop` to the server and kill process once stopDuration elapsed
+func terminate(logger *zap.Logger, stdin io.Writer, cmd *exec.Cmd, stopDuration time.Duration) {
+	if hasRconCli() {
+		err := stopWithRconCli()
+		if err != nil {
+			logger.Error("Failed to stop using rcon-cli", zap.Error(err))
+			stopViaConsole(logger, stdin)
+		}
+	} else {
+		stopViaConsole(logger, stdin)
+	}
+
+	logger.Info("Waiting for completion...")
+	if stopDuration != 0 {
+		time.AfterFunc(stopDuration, func() {
+			logger.Error("Took too long, so killing server process")
+			err := cmd.Process.Kill()
+			if err != nil {
+				logger.Error("Failed to forcefully kill process")
+			}
+		})
 	}
 }
 
