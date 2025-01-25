@@ -160,7 +160,8 @@ func main() {
 	for {
 		select {
 		case <-termChan:
-			logger.Info("SIGTERM caught, gracefully stopping server...")
+			logger.Debug("SIGTERM caught")
+			logger.Info("gracefully stopping server...")
 			if args.StopServerAnnounceDelay > 0 {
 				announceStop(logger, stdin, args.StopServerAnnounceDelay)
 				logger.Info("Sleeping before server stop", zap.Duration("sleepTime", args.StopServerAnnounceDelay))
