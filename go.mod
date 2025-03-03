@@ -1,13 +1,13 @@
 module github.com/itzg/mc-server-runner
 
-go 1.23
+go 1.23.0
 
 require (
 	github.com/google/uuid v1.6.0
 	github.com/itzg/go-flagsfiller v1.15.0
 	github.com/itzg/zapconfigs v0.1.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.33.0
+	golang.org/x/crypto v0.35.0
 	golang.org/x/term v0.29.0
 )
 
