@@ -299,7 +299,7 @@ func stopWithRconCli(stopCommand string) error {
 }
 
 func stopViaConsole(logger *zap.Logger, stdin io.Writer, stopCommand string) {
-	logger.Info("Sending 'stop' to Minecraft server...")
+	logger.Info("Sending '" + stopCommand + "' to Minecraft server...")
 	_, err := stdin.Write([]byte(stopCommand + "\n"))
 	if err != nil {
 		logger.Error("Failed to write stop command to server console", zap.Error(err))
