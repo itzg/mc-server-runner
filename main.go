@@ -62,6 +62,10 @@ func main() {
 		logger.Fatal("Missing executable arguments")
 	}
 
+	if args.StopCommand != "" {
+		args.StopCommand = strings.ReplaceAll(args.StopCommand, "\"", "")
+	}
+
 	if args.Shell != "" {
 		cmd = exec.Command(args.Shell, flag.Args()...)
 	} else {
@@ -300,7 +304,7 @@ func stopWithRconCli(stopCommand string) error {
 
 func stopViaConsole(logger *zap.Logger, stdin io.Writer, stopCommand string) {
 	logger.Info("Sending '" + stopCommand + "' to Minecraft server...")
-	_, err := stdin.Write([]byte(strings.ReplaceAll(stopCommand, "\"", "") + "\n"))
+	_, err := stdin.Write([]byte(stopCommand + "\n"))
 	if err != nil {
 		logger.Error("Failed to write stop command to server console", zap.Error(err))
 	}
