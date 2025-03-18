@@ -22,7 +22,7 @@ import (
 type Args struct {
 	Debug                   bool          `usage:"Enable debug logging"`
 	Bootstrap               string        `usage:"Specifies a file with commands to initially send to the server"`
-	StopCommand             string        `usage:"Which command to send to the server to stop it ('stop' by default)."`
+	StopCommand             string        `default:"stop" usage:"Which command to send to the server to stop it"`
 	StopDuration            time.Duration `usage:"Amount of time in Golang duration to wait after sending the 'stop' command."`
 	StopServerAnnounceDelay time.Duration `default:"0s" usage:"Amount of time in Golang duration to wait after announcing server shutdown"`
 	DetachStdin             bool          `usage:"Don't forward stdin and allow process to be put in background"`
@@ -60,10 +60,6 @@ func main() {
 
 	if flag.NArg() < 1 {
 		logger.Fatal("Missing executable arguments")
-	}
-
-	if args.StopCommand != "" {
-		args.StopCommand = strings.ReplaceAll(args.StopCommand, "\"", "")
 	}
 
 	if args.Shell != "" {
