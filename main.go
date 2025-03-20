@@ -22,6 +22,7 @@ import (
 type Args struct {
 	Debug                   bool          `usage:"Enable debug logging"`
 	Bootstrap               string        `usage:"Specifies a file with commands to initially send to the server"`
+	StopCommand             string        `default:"stop" usage:"Which command to send to the server to stop it"`
 	StopDuration            time.Duration `usage:"Amount of time in Golang duration to wait after sending the 'stop' command."`
 	StopServerAnnounceDelay time.Duration `default:"0s" usage:"Amount of time in Golang duration to wait after announcing server shutdown"`
 	DetachStdin             bool          `usage:"Don't forward stdin and allow process to be put in background"`
@@ -167,23 +168,23 @@ func main() {
 				logger.Info("Sleeping before server stop", zap.Duration("sleepTime", args.StopServerAnnounceDelay))
 				timer = time.AfterFunc(args.StopServerAnnounceDelay, func() {
 					logger.Info("StopServerAnnounceDelay elapsed, stopping server")
-					terminate(logger, stdin, cmd, args.StopDuration)
+					terminate(logger, stdin, cmd, args.StopDuration, args.StopCommand)
 				})
 			} else {
-				terminate(logger, stdin, cmd, args.StopDuration)
+				terminate(logger, stdin, cmd, args.StopDuration, args.StopCommand)
 			}
 
 		case <-usr1Chan:
 			if timer != nil {
 				if timer.Stop() {
 					logger.Info("SIGUSR1 caught, bypassing running StopServerAnnounceDelay")
-					terminate(logger, stdin, cmd, args.StopDuration)
+					terminate(logger, stdin, cmd, args.StopDuration, args.StopCommand)
 				} else {
 					logger.Info("SIGUSR1 caught, StopServerAnnounceDelay already elapsed, server is already stopping")
 				}
 			} else {
 				logger.Info("SIGUSR1 caught, gracefully stopping server... (without StopServerAnnounceDelay)")
-				terminate(logger, stdin, cmd, args.StopDuration)
+				terminate(logger, stdin, cmd, args.StopDuration, args.StopCommand)
 			}
 
 		case namedPipeErr := <-errorChan:
@@ -256,15 +257,18 @@ func sendCommand(stdin io.Writer, cmd ...string) error {
 }
 
 // terminate sends `stop` to the server and kill process once stopDuration elapsed
-func terminate(logger *zap.Logger, stdin io.Writer, cmd *exec.Cmd, stopDuration time.Duration) {
+func terminate(logger *zap.Logger, stdin io.Writer, cmd *exec.Cmd, stopDuration time.Duration, stopCommand string) {
+	if stopCommand == "" {
+		stopCommand = "stop"
+	}
 	if hasRconCli() {
-		err := stopWithRconCli()
+		err := stopWithRconCli(stopCommand)
 		if err != nil {
 			logger.Error("Failed to stop using rcon-cli", zap.Error(err))
-			stopViaConsole(logger, stdin)
+			stopViaConsole(logger, stdin, stopCommand)
 		}
 	} else {
-		stopViaConsole(logger, stdin)
+		stopViaConsole(logger, stdin, stopCommand)
 	}
 
 	logger.Info("Waiting for completion...")
@@ -288,15 +292,15 @@ func announceStop(logger *zap.Logger, stdin io.Writer, shutdownDelay time.Durati
 	}
 }
 
-func stopWithRconCli() error {
+func stopWithRconCli(stopCommand string) error {
 	log.Println("Stopping with rcon-cli")
 
-	return sendRconCommand("stop")
+	return sendRconCommand(stopCommand)
 }
 
-func stopViaConsole(logger *zap.Logger, stdin io.Writer) {
-	logger.Info("Sending 'stop' to Minecraft server...")
-	_, err := stdin.Write([]byte("stop\n"))
+func stopViaConsole(logger *zap.Logger, stdin io.Writer, stopCommand string) {
+	logger.Info("Sending '" + stopCommand + "' to Minecraft server...")
+	_, err := stdin.Write([]byte(stopCommand + "\n"))
 	if err != nil {
 		logger.Error("Failed to write stop command to server console", zap.Error(err))
 	}
