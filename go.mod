@@ -7,13 +7,13 @@ require (
 	github.com/itzg/go-flagsfiller v1.16.0
 	github.com/itzg/zapconfigs v0.1.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.40.0
-	golang.org/x/term v0.33.0
+	golang.org/x/crypto v0.41.0
+	golang.org/x/term v0.34.0
 )
 
 require (
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
-	golang.org/x/sys v0.34.0 // indirect
+	golang.org/x/sys v0.35.0 // indirect
 )
 
 require (
