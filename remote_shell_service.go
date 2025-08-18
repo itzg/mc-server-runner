@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -33,6 +34,10 @@ const (
 const (
 	stdOutTarget ConsoleTarget = 0
 	stdErrTarget ConsoleTarget = 1
+)
+
+const (
+	MaxScanRun = 16 * 1024
 )
 
 type Console struct {
@@ -166,12 +171,36 @@ InputLoop:
 	logger.Info(fmt.Sprintf("Remote console session disconnected (%s/%s)", session.User(), session.RemoteAddr().String()))
 }
 
+// Custom scanner
+func ScanForSSH(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	if atEOF && len(data) == 0 {
+		return 0, nil, nil
+	}
+
+	// Return either the current max run, or the line, whichever we hit first.
+	// Include the newlines as we will just be forwarding them onto the client.
+	if len(data) >= MaxScanRun {
+		return len(data), data, nil
+	}
+	if i := bytes.IndexByte(data, '\n'); i >= 0 {
+		return i + 1, data[0:i+1], nil
+	}
+
+	// Return remaining data at EOF
+	if atEOF {
+		return len(data), data, nil
+	}
+
+	return 0, nil, nil
+}
+
 // Use stdOut or stdErr for output.
 // There should only ever be one at a time per pipe
 func consoleOutRoutine(output io.Writer, console *Console, target ConsoleTarget, logger *zap.Logger) {
 	scanner := bufio.NewScanner(console.OutputPipe(target))
+	scanner.Split(ScanForSSH)
 	for scanner.Scan() {
-		outBytes := []byte(fmt.Sprintf("%s\n", scanner.Text()))
+		outBytes := []byte(scanner.Text())
 		_, err := output.Write(outBytes)
 		if err != nil {
 			logger.Error("Failed to write to stdout")
