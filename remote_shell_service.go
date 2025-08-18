@@ -36,10 +36,6 @@ const (
 	stdErrTarget ConsoleTarget = 1
 )
 
-const (
-	MaxScanRun = 16 * 1024
-)
-
 type Console struct {
 	stdInLock  sync.Mutex
 	stdInPipe  io.Writer
@@ -179,7 +175,7 @@ func ScanForSSH(data []byte, atEOF bool) (advance int, token []byte, err error) 
 
 	// Return either the current max run, or the line, whichever we hit first.
 	// Include the newlines as we will just be forwarding them onto the client.
-	if len(data) >= MaxScanRun {
+	if len(data) >= bufio.MaxScanTokenSize {
 		return len(data), data, nil
 	}
 	if i := bytes.IndexByte(data, '\n'); i >= 0 {
