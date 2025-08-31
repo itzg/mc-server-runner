@@ -29,6 +29,7 @@ type Args struct {
 	RemoteConsole           bool          `usage:"Allow remote shell connections over SSH to server console"`
 	Shell                   string        `usage:"When set, pass the arguments to this shell"`
 	NamedPipe               string        `usage:"Optional path to create and read a named pipe for console input"`
+	WebsocketConsole        bool          `usage:"Allow remote shell over websocket"`
 }
 
 func main() {
@@ -73,18 +74,34 @@ func main() {
 		logger.Error("Unable to get stdin", zap.Error(err))
 	}
 
+	type writers []io.Writer
+	var StdoutWritersList writers
+	var StderrWritersList writers
+	StdoutWritersList = append(StdoutWritersList, os.Stdout)
+	StderrWritersList = append(StderrWritersList, os.Stderr)
+
+	if args.WebsocketConsole {
+		wsOutWriter := &wsWriter{prefix: ""}
+		wsErrWriter := &wsWriter{prefix: "[stderr] "}
+
+		StdoutWritersList = append(StdoutWritersList, wsOutWriter)
+		StderrWritersList = append(StderrWritersList, wsErrWriter)
+
+		go runWebsocketServer(logger, wsOutWriter)
+	}
+
 	if args.RemoteConsole {
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			logger.Error("Unable to get stdout", zap.Error(err))
-		}
+		sshStdoutPipe := newPipeWriter()
+		sshStderrPipe := newPipeWriter()
 
-		stderr, err := cmd.StderrPipe()
-		if err != nil {
-			logger.Error("Unable to get stderr", zap.Error(err))
-		}
+		StdoutWritersList = append(StdoutWritersList, sshStdoutPipe)
+		StderrWritersList = append(StderrWritersList, sshStderrPipe)
 
-		console := makeConsole(stdin, stdout, stderr)
+		// Create readers for the console
+		sshStdoutReader := sshStdoutPipe.AddReader()
+		sshStderrReader := sshStderrPipe.AddReader()
+
+		console := makeConsole(stdin, sshStdoutReader, sshStderrReader)
 
 		// Relay stdin between outside and server
 		if !args.DetachStdin {
@@ -97,14 +114,19 @@ func main() {
 		go runRemoteShellServer(console, logger)
 
 		logger.Info("Running with remote console support")
-	} else {
-		logger.Debug("Directly assigning stdout/stderr")
-		// directly assign stdout/err to pass through terminal, if applicable
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+	}
 
+	logger.Debug("Directly assigning stdout/stderr")
+
+	multiOut := io.MultiWriter(StdoutWritersList...)
+	multiErr := io.MultiWriter(StderrWritersList...)
+
+	cmd.Stdout = multiOut
+	cmd.Stderr = multiErr
+
+	if !args.RemoteConsole {
+		logger.Debug("Directly assigning stdin")
 		if hasRconCli() && args.NamedPipe == "" {
-			logger.Debug("Directly assigning stdin")
 			cmd.Stdin = os.Stdin
 			stdin = os.Stdin
 		} else {

@@ -197,10 +197,10 @@ func consoleOutRoutine(output io.Writer, console *Console, target ConsoleTarget,
 	scanner.Split(ScanForSSH)
 	for scanner.Scan() {
 		outBytes := []byte(scanner.Text())
-		_, err := output.Write(outBytes)
-		if err != nil {
-			logger.Error("Failed to write to stdout")
-		}
+		// _, err := output.Write(outBytes)
+		// if err != nil {
+		// 	logger.Error("Failed to write to stdout")
+		// }
 
 		remoteSessions := console.CurrentSessions()
 		for _, session := range remoteSessions {
@@ -455,4 +455,44 @@ func runRemoteShellServer(console *Console, logger *zap.Logger) {
 		twinKeys(hostKeys),
 		ssh.PasswordAuth(func(ctx ssh.Context, password string) bool { return passwordHandler(ctx, password, logger) }),
 	))
+}
+
+///
+
+// Create custom pipe writers that can fan out to multiple readers
+type pipeWriter struct {
+	readers []io.Reader
+	writers []io.WriteCloser
+}
+
+func newPipeWriter() *pipeWriter {
+	return &pipeWriter{
+		readers: make([]io.Reader, 0),
+		writers: make([]io.WriteCloser, 0),
+	}
+}
+
+func (pw *pipeWriter) AddReader() io.Reader {
+	r, w := io.Pipe()
+	pw.readers = append(pw.readers, r)
+	pw.writers = append(pw.writers, w)
+	return r
+}
+
+func (pw *pipeWriter) Write(p []byte) (n int, err error) {
+	// Write to all pipe writers
+	for _, w := range pw.writers {
+		if _, err := w.Write(p); err != nil {
+			// Handle error - maybe remove this writer or log
+			continue
+		}
+	}
+	return len(p), nil
+}
+
+func (pw *pipeWriter) Close() error {
+	for _, w := range pw.writers {
+		w.Close()
+	}
+	return nil
 }
