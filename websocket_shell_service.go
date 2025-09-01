@@ -3,10 +3,12 @@ package main
 import (
 	// "bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -26,16 +28,42 @@ const (
 	MessageTypeStdout  MessageType = "stdout"
 	MessageTypeStderr  MessageType = "stderr"
 	MessageTypeWelcome MessageType = "welcome"
-	MessageTypeAuthErr MessageType = "auth_err"
+	// MessageTypeAuthErr MessageType = "auth_err"
 )
 
-type Message struct {
-	Type        MessageType `json:"type"`
-	Content     string      `json:"content,omitempty"`
-	RecentLines []string    `json:"recent_lines,omitempty"`
-	LineCount   int         `json:"line_count,omitempty"`
-	Time        time.Time   `json:"time"`
+type Message interface {
+	GetType() string
 }
+
+type StdinMessage struct {
+	Type    MessageType `json:"type"`
+	Content string      `json:"content"`
+}
+
+func (m StdinMessage) GetType() string { return string(m.Type) }
+
+type StdoutMessage struct {
+	Type    MessageType `json:"type"`
+	Content string      `json:"content"`
+	Time    time.Time   `json:"time,omitzero"`
+}
+
+func (m StdoutMessage) GetType() string { return string(m.Type) }
+
+type StderrMessage struct {
+	Type    MessageType `json:"type"`
+	Content string      `json:"content"`
+	Time    time.Time   `json:"time,omitzero"`
+}
+
+func (m StderrMessage) GetType() string { return string(m.Type) }
+
+type WelcomeMessage struct {
+	Type        MessageType `json:"type"`
+	RecentLines []string    `json:"RecentLines"`
+}
+
+func (m WelcomeMessage) GetType() string { return string(m.Type) }
 
 type WsClient struct {
 	c          *websocket.Conn
@@ -46,6 +74,7 @@ type WsClient struct {
 
 type websocketServer struct {
 	logger  *zap.Logger
+	stdin   io.Writer
 	clients map[uuid.UUID]*WsClient
 	mu      sync.Mutex
 }
@@ -76,9 +105,8 @@ func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	go heartbeatRoutine(ctx, s.logger, c, 30*time.Second)
 
-	// l := rate.NewLimiter(rate.Every(time.Millisecond*100), 10)
 	for {
-		err = echo(c)
+		err = echo(c, s)
 		if websocket.CloseStatus(err) == websocket.StatusNormalClosure {
 			s.logger.Info(fmt.Sprintf("Websocket connection closed with %v", r.RemoteAddr))
 			return
@@ -117,7 +145,7 @@ func heartbeatRoutine(ctx context.Context, logger *zap.Logger, c *websocket.Conn
 	}
 }
 
-func echo(c *websocket.Conn /*stdin io.Writer*/) error {
+func echo(c *websocket.Conn, s *websocketServer) error {
 	ctx := context.Background()
 
 	for {
@@ -131,8 +159,20 @@ func echo(c *websocket.Conn /*stdin io.Writer*/) error {
 			if err != nil {
 				return err
 			}
-			// stdin.Write(data) // Send to Minecraft server stdin
-			fmt.Println(string(data)) // Print line DEBUG
+
+			s.logger.Debug(fmt.Sprintf("Received raw data: %q\n", string(data)))
+
+			var msg StdinMessage
+			if err := json.Unmarshal(data, &msg); err != nil {
+				s.logger.Error(fmt.Sprintf("JSON parse error: %v\n", err))
+			} else {
+				s.logger.Debug(fmt.Sprintf("Successfully parsed JSON: %+v\n", msg))
+				content := msg.Content
+				if !strings.HasSuffix(content, "\n") {
+					content += "\n"
+				}
+				s.stdin.Write([]byte(content))
+			}
 		}
 	}
 }
@@ -150,7 +190,6 @@ func (b *wsWriter) Write(p []byte) (int, error) {
 	if b.server != nil {
 		b.server.broadcast(msg)
 	}
-	fmt.Println("[wsWriter] " + msg)
 	return len(p), nil
 }
 
@@ -161,7 +200,7 @@ func (s *websocketServer) broadcast(msg string) {
 	for id, client := range s.clients {
 		client.writeMutex.Lock()
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		message := &Message{
+		message := &StdoutMessage{
 			Type:    MessageTypeStdout,
 			Content: string([]byte(msg)),
 			Time:    time.Now(),
@@ -182,7 +221,7 @@ func (s *websocketServer) broadcast(msg string) {
 	}
 }
 
-func runWebsocketServer(logger *zap.Logger /*console *WsConsole*/, writer *wsWriter) error {
+func runWebsocketServer(logger *zap.Logger, writer *wsWriter, stdin io.Writer) error {
 	l, err := net.Listen("tcp", "0.0.0.0:80")
 	if err != nil {
 		return err
@@ -192,7 +231,7 @@ func runWebsocketServer(logger *zap.Logger /*console *WsConsole*/, writer *wsWri
 	s := &http.Server{
 		Handler: &websocketServer{
 			logger,
-			//console,
+			stdin,
 			map[uuid.UUID]*WsClient{},
 			sync.Mutex{},
 		},

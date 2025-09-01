@@ -87,7 +87,7 @@ func main() {
 		StdoutWritersList = append(StdoutWritersList, wsOutWriter)
 		StderrWritersList = append(StderrWritersList, wsErrWriter)
 
-		go runWebsocketServer(logger, wsOutWriter)
+		go runWebsocketServer(logger, wsOutWriter, stdin)
 	}
 
 	if args.RemoteConsole {
