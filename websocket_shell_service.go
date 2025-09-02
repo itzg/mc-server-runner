@@ -28,7 +28,7 @@ const (
 	MessageTypeStdout  MessageType = "stdout"
 	MessageTypeStderr  MessageType = "stderr"
 	MessageTypeWelcome MessageType = "welcome"
-	// MessageTypeAuthErr MessageType = "auth_err"
+	// MessageTypeAuthErr MessageType = "auth_err" // keeping this here cus i think adding authentication would be a good idea but maybe this isn't needed for that
 )
 
 type Message interface {
@@ -205,7 +205,6 @@ func (s *websocketServer) broadcast(msg string) {
 			Content: string([]byte(msg)),
 			Time:    time.Now(),
 		}
-		// err := client.c.Write(ctx, websocket.MessageText, )
 		err := wsjson.Write(ctx, client.c, message)
 		cancel()
 		client.writeMutex.Unlock()

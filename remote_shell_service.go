@@ -197,10 +197,6 @@ func consoleOutRoutine(output io.Writer, console *Console, target ConsoleTarget,
 	scanner.Split(ScanForSSH)
 	for scanner.Scan() {
 		outBytes := []byte(scanner.Text())
-		// _, err := output.Write(outBytes)
-		// if err != nil {
-		// 	logger.Error("Failed to write to stdout")
-		// }
 
 		remoteSessions := console.CurrentSessions()
 		for _, session := range remoteSessions {
