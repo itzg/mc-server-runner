@@ -128,7 +128,7 @@ func heartbeatRoutine(ctx context.Context, logger *zap.Logger, c *websocket.Conn
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			pingCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 
 			start := time.Now()
 			if err := c.Ping(pingCtx); err != nil {
