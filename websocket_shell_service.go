@@ -65,10 +65,10 @@ type WelcomeMessage struct {
 func (m WelcomeMessage) GetType() string { return string(m.Type) }
 
 type WsClient struct {
-	c          *websocket.Conn
-	w          http.ResponseWriter
-	r          http.Request
-	writeMutex sync.Mutex
+	wsConn         *websocket.Conn
+	responseWriter http.ResponseWriter
+	request        http.Request
+	writeMutex     sync.Mutex
 }
 
 type websocketServer struct {
@@ -202,7 +202,7 @@ func (s *websocketServer) broadcast(msg string) {
 			Content: string([]byte(msg)),
 			Time:    time.Now(),
 		}
-		err := wsjson.Write(ctx, client.c, message)
+		err := wsjson.Write(ctx, client.wsConn, message)
 		cancel()
 		client.writeMutex.Unlock()
 
@@ -211,7 +211,7 @@ func (s *websocketServer) broadcast(msg string) {
 				zap.String("client", id.String()),
 				zap.Error(err),
 			)
-			client.c.Close(websocket.StatusInternalError, "closing client")
+			client.wsConn.Close(websocket.StatusInternalError, "closing client")
 			delete(s.clients, id)
 		}
 	}
