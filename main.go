@@ -75,17 +75,17 @@ func main() {
 	}
 
 	type writers []io.Writer
-	var StdoutWritersList writers
-	var StderrWritersList writers
-	StdoutWritersList = append(StdoutWritersList, os.Stdout)
-	StderrWritersList = append(StderrWritersList, os.Stderr)
+	var stdoutWritersList writers
+	var stderrWritersList writers
+	stdoutWritersList = append(stdoutWritersList, os.Stdout)
+	stderrWritersList = append(stderrWritersList, os.Stderr)
 
 	if args.WebsocketConsole {
 		wsOutWriter := &wsWriter{prefix: ""}
 		wsErrWriter := &wsWriter{prefix: "[stderr] "}
 
-		StdoutWritersList = append(StdoutWritersList, wsOutWriter)
-		StderrWritersList = append(StderrWritersList, wsErrWriter)
+		stdoutWritersList = append(stdoutWritersList, wsOutWriter)
+		stderrWritersList = append(stderrWritersList, wsErrWriter)
 
 		go runWebsocketServer(logger, wsOutWriter, stdin)
 	}
@@ -94,8 +94,8 @@ func main() {
 		sshStdoutPipe := newPipeWriter()
 		sshStderrPipe := newPipeWriter()
 
-		StdoutWritersList = append(StdoutWritersList, sshStdoutPipe)
-		StderrWritersList = append(StderrWritersList, sshStderrPipe)
+		stdoutWritersList = append(stdoutWritersList, sshStdoutPipe)
+		stderrWritersList = append(stderrWritersList, sshStderrPipe)
 
 		// Create readers for the console
 		sshStdoutReader := sshStdoutPipe.AddReader()
@@ -118,8 +118,8 @@ func main() {
 
 	logger.Debug("Directly assigning stdout/stderr")
 
-	multiOut := io.MultiWriter(StdoutWritersList...)
-	multiErr := io.MultiWriter(StderrWritersList...)
+	multiOut := io.MultiWriter(stdoutWritersList...)
+	multiErr := io.MultiWriter(stderrWritersList...)
 
 	cmd.Stdout = multiOut
 	cmd.Stderr = multiErr
