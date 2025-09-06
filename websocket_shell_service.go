@@ -106,7 +106,7 @@ func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	go heartbeatRoutine(ctx, s.logger, c, 30*time.Second)
 
 	for {
-		err = echo(c, s)
+		err = echo(c, s, ctx)
 		if websocket.CloseStatus(err) == websocket.StatusNormalClosure {
 			s.logger.Info(fmt.Sprintf("Websocket connection closed with %v", r.RemoteAddr))
 			return
@@ -145,9 +145,7 @@ func heartbeatRoutine(ctx context.Context, logger *zap.Logger, c *websocket.Conn
 	}
 }
 
-func echo(c *websocket.Conn, s *websocketServer) error {
-	ctx := context.Background()
-
+func echo(c *websocket.Conn, s *websocketServer, ctx context.Context) error {
 	for {
 		typ, r, err := c.Reader(ctx)
 		if err != nil {
