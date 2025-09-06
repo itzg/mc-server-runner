@@ -218,7 +218,7 @@ func (s *websocketServer) broadcast(msg string) {
 	}
 }
 
-func runWebsocketServer(logger *zap.Logger, writer *wsWriter, stdin io.Writer) error {
+func runWebsocketServer(logger *zap.Logger, stdoutWriter *wsWriter, stderrWriter *wsWriter, stdin io.Writer) error {
 	l, err := net.Listen("tcp", "0.0.0.0:80")
 	if err != nil {
 		return err
@@ -236,7 +236,8 @@ func runWebsocketServer(logger *zap.Logger, writer *wsWriter, stdin io.Writer) e
 		WriteTimeout: time.Second * 10,
 	}
 
-	writer.server = s.Handler.(*websocketServer)
+	stdoutWriter.server = s.Handler.(*websocketServer)
+	stderrWriter.server = s.Handler.(*websocketServer)
 
 	errc := make(chan error, 1)
 	go func() {
