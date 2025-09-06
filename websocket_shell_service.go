@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -24,10 +25,10 @@ const (
 	// Client -> Server
 	MessageTypeStdin MessageType = "stdin"
 	// Server -> Client
-	MessageTypeStdout  MessageType = "stdout"
-	MessageTypeStderr  MessageType = "stderr"
-	MessageTypeWelcome MessageType = "welcome"
-	// MessageTypeAuthErr MessageType = "auth_err" // keeping this here cus i think adding authentication would be a good idea but maybe this isn't needed for that
+	MessageTypeStdout    MessageType = "stdout"
+	MessageTypeStderr    MessageType = "stderr"
+	MessageTypeWelcome   MessageType = "welcome"
+	MessageTypeAuthError MessageType = "auth_err"
 )
 
 type Message interface {
@@ -64,6 +65,13 @@ type WelcomeMessage struct {
 
 func (m WelcomeMessage) GetType() string { return string(m.Type) }
 
+type AuthErrorMessage struct {
+	Type   MessageType `json:"type"`
+	Reason string      `json:"reason"`
+}
+
+func (m AuthErrorMessage) GetType() string { return string(m.Type) }
+
 type WsClient struct {
 	wsConn         *websocket.Conn
 	responseWriter http.ResponseWriter
@@ -78,7 +86,36 @@ type websocketServer struct {
 	mu      sync.Mutex
 }
 
+func getWebsocketPassword() string {
+	var password string
+
+	password = os.Getenv("WEBSOCKET_PASSWORD")
+	if password != "" {
+		return password
+	}
+
+	password = os.Getenv("RCON_PASSWORD")
+	if password != "" {
+		return password
+	}
+
+	return "minecraft"
+}
+
 func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	password := r.Header.Get("X-WS-Auth")
+	if password != getWebsocketPassword() {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+
+		errMsg := AuthErrorMessage{
+			Type:   MessageTypeAuthError,
+			Reason: "invalid password",
+		}
+		json.NewEncoder(w).Encode(errMsg)
+		return
+	}
+
 	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 		InsecureSkipVerify: true,
 	})
