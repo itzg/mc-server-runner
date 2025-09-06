@@ -453,9 +453,6 @@ func runRemoteShellServer(console *Console, logger *zap.Logger) {
 	))
 }
 
-///
-
-// Create custom pipe writers that can fan out to multiple readers
 type pipeWriter struct {
 	readers []io.Reader
 	writers []io.WriteCloser
@@ -476,7 +473,6 @@ func (pw *pipeWriter) AddReader() io.Reader {
 }
 
 func (pw *pipeWriter) Write(p []byte) (n int, err error) {
-	// Write to all pipe writers
 	for _, w := range pw.writers {
 		if _, err := w.Write(p); err != nil {
 			// Handle error - maybe remove this writer or log
