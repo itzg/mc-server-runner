@@ -179,7 +179,7 @@ func ScanForSSH(data []byte, atEOF bool) (advance int, token []byte, err error) 
 		return len(data), data, nil
 	}
 	if i := bytes.IndexByte(data, '\n'); i >= 0 {
-		return i + 1, data[0:i+1], nil
+		return i + 1, data[0 : i+1], nil
 	}
 
 	// Return remaining data at EOF
@@ -456,12 +456,14 @@ func runRemoteShellServer(console *Console, logger *zap.Logger) {
 type pipeWriter struct {
 	readers []io.Reader
 	writers []io.WriteCloser
+	logger  *zap.Logger
 }
 
-func newPipeWriter() *pipeWriter {
+func newPipeWriter(logger *zap.Logger) *pipeWriter {
 	return &pipeWriter{
 		readers: make([]io.Reader, 0),
 		writers: make([]io.WriteCloser, 0),
+		logger:  logger,
 	}
 }
 
@@ -475,7 +477,7 @@ func (pw *pipeWriter) AddReader() io.Reader {
 func (pw *pipeWriter) Write(p []byte) (n int, err error) {
 	for _, w := range pw.writers {
 		if _, err := w.Write(p); err != nil {
-			// Handle error - maybe remove this writer or log
+			pw.logger.Error("error writing to ssh client")
 			continue
 		}
 	}

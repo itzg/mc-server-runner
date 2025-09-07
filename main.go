@@ -92,8 +92,8 @@ func main() {
 	}
 
 	if args.RemoteConsole {
-		sshStdoutPipe := newPipeWriter()
-		sshStderrPipe := newPipeWriter()
+		sshStdoutPipe := newPipeWriter(logger)
+		sshStderrPipe := newPipeWriter(logger)
 
 		stdoutWritersList = append(stdoutWritersList, sshStdoutPipe)
 		stderrWritersList = append(stderrWritersList, sshStderrPipe)
