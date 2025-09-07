@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -20,15 +21,18 @@ import (
 )
 
 type Args struct {
-	Debug                   bool          `usage:"Enable debug logging"`
-	Bootstrap               string        `usage:"Specifies a file with commands to initially send to the server"`
-	StopCommand             string        `default:"stop" usage:"Which command to send to the server to stop it"`
-	StopDuration            time.Duration `usage:"Amount of time in Golang duration to wait after sending the 'stop' command."`
-	StopServerAnnounceDelay time.Duration `default:"0s" usage:"Amount of time in Golang duration to wait after announcing server shutdown"`
-	DetachStdin             bool          `usage:"Don't forward stdin and allow process to be put in background"`
-	RemoteConsole           bool          `usage:"Allow remote shell connections over SSH to server console"`
-	Shell                   string        `usage:"When set, pass the arguments to this shell"`
-	NamedPipe               string        `usage:"Optional path to create and read a named pipe for console input"`
+	Debug                          bool          `usage:"Enable debug logging"`
+	Bootstrap                      string        `usage:"Specifies a file with commands to initially send to the server"`
+	StopCommand                    string        `default:"stop" usage:"Which command to send to the server to stop it"`
+	StopDuration                   time.Duration `usage:"Amount of time in Golang duration to wait after sending the 'stop' command."`
+	StopServerAnnounceDelay        time.Duration `default:"0s" usage:"Amount of time in Golang duration to wait after announcing server shutdown"`
+	DetachStdin                    bool          `usage:"Don't forward stdin and allow process to be put in background"`
+	RemoteConsole                  bool          `usage:"Allow remote shell connections over SSH to server console"`
+	Shell                          string        `usage:"When set, pass the arguments to this shell"`
+	NamedPipe                      string        `usage:"Optional path to create and read a named pipe for console input"`
+	WebsocketConsole               bool          `usage:"Allow remote shell over websocket"`
+	WebsocketAddress               string        `default:":80" usage:"Bind address for websocket server" env:"WEBSOCKET_ADDRESS"`
+	WebsocketDisableAuthentication bool          `default:"false" usage:"Disable websocket authentication" env:"WEBSOCKET_DISABLE_AUTHENTICATION"`
 }
 
 func main() {
@@ -73,18 +77,40 @@ func main() {
 		logger.Error("Unable to get stdin", zap.Error(err))
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	errorChan := make(chan error, 1)
+	var backgroundFinished sync.WaitGroup
+
+	type writers []io.Writer
+	var stdoutWritersList writers
+	var stderrWritersList writers
+	stdoutWritersList = append(stdoutWritersList, os.Stdout)
+	stderrWritersList = append(stderrWritersList, os.Stderr)
+
+	if args.WebsocketConsole {
+		wsOutWriter := &wsWriter{}
+		wsErrWriter := &wsWriter{}
+
+		stdoutWritersList = append(stdoutWritersList, wsOutWriter)
+		stderrWritersList = append(stderrWritersList, wsErrWriter)
+
+		backgroundFinished.Add(1)
+		go runWebsocketServer(ctx, logger, errorChan, &backgroundFinished, wsOutWriter, wsErrWriter, stdin, args.WebsocketDisableAuthentication,
+			args.WebsocketAddress)
+	}
+
 	if args.RemoteConsole {
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			logger.Error("Unable to get stdout", zap.Error(err))
-		}
+		sshStdoutPipe := newPipeWriter(logger)
+		sshStderrPipe := newPipeWriter(logger)
 
-		stderr, err := cmd.StderrPipe()
-		if err != nil {
-			logger.Error("Unable to get stderr", zap.Error(err))
-		}
+		stdoutWritersList = append(stdoutWritersList, sshStdoutPipe)
+		stderrWritersList = append(stderrWritersList, sshStderrPipe)
 
-		console := makeConsole(stdin, stdout, stderr)
+		// Create readers for the console
+		sshStdoutReader := sshStdoutPipe.AddReader()
+		sshStderrReader := sshStderrPipe.AddReader()
+
+		console := makeConsole(stdin, sshStdoutReader, sshStderrReader)
 
 		// Relay stdin between outside and server
 		if !args.DetachStdin {
@@ -97,12 +123,17 @@ func main() {
 		go runRemoteShellServer(console, logger)
 
 		logger.Info("Running with remote console support")
-	} else {
-		logger.Debug("Directly assigning stdout/stderr")
-		// directly assign stdout/err to pass through terminal, if applicable
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+	}
 
+	logger.Debug("Directly assigning stdout/stderr")
+
+	multiOut := io.MultiWriter(stdoutWritersList...)
+	multiErr := io.MultiWriter(stderrWritersList...)
+
+	cmd.Stdout = multiOut
+	cmd.Stderr = multiErr
+
+	if !args.RemoteConsole {
 		if hasRconCli() && args.NamedPipe == "" {
 			logger.Debug("Directly assigning stdin")
 			cmd.Stdin = os.Stdin
@@ -127,9 +158,6 @@ func main() {
 			logger.Error("Failed to write bootstrap content", zap.Error(err))
 		}
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	errorChan := make(chan error, 1)
 
 	if args.NamedPipe != "" {
 		err2 := handleNamedPipe(ctx, args.NamedPipe, stdin, errorChan)
@@ -163,6 +191,7 @@ func main() {
 		case <-termChan:
 			logger.Debug("SIGTERM caught")
 			logger.Info("gracefully stopping server...")
+			cancel()
 			if args.StopServerAnnounceDelay > 0 {
 				announceStop(logger, stdin, args.StopServerAnnounceDelay)
 				logger.Info("Sleeping before server stop", zap.Duration("sleepTime", args.StopServerAnnounceDelay))
@@ -178,20 +207,26 @@ func main() {
 			if timer != nil {
 				if timer.Stop() {
 					logger.Info("SIGUSR1 caught, bypassing running StopServerAnnounceDelay")
+					cancel()
 					terminate(logger, stdin, cmd, args.StopDuration, args.StopCommand)
 				} else {
 					logger.Info("SIGUSR1 caught, StopServerAnnounceDelay already elapsed, server is already stopping")
 				}
 			} else {
 				logger.Info("SIGUSR1 caught, gracefully stopping server... (without StopServerAnnounceDelay)")
+				cancel()
 				terminate(logger, stdin, cmd, args.StopDuration, args.StopCommand)
 			}
 
-		case namedPipeErr := <-errorChan:
-			logger.Error("Error during named pipe handling", zap.Error(namedPipeErr))
+		case backgroundErr := <-errorChan:
+			logger.Error("Error during background processing", zap.Error(backgroundErr))
+			cancel()
+			terminate(logger, stdin, cmd, args.StopDuration, args.StopCommand)
 
 		case exitCode := <-cmdExitChan:
 			cancel()
+			logger.Debug("Waiting on background processes to finish")
+			backgroundFinished.Wait()
 			logger.Info("Done")
 			os.Exit(exitCode)
 		}

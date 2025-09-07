@@ -13,6 +13,7 @@ require (
 
 require (
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
+	github.com/coder/websocket v1.8.13 // indirect
 	golang.org/x/sys v0.35.0 // indirect
 )
 
@@ -20,4 +21,5 @@ require (
 	github.com/gliderlabs/ssh v0.3.8
 	github.com/iancoleman/strcase v0.3.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
+	golang.org/x/time v0.12.0
 )
