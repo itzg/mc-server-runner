@@ -30,6 +30,7 @@ type Args struct {
 	Shell                          string        `usage:"When set, pass the arguments to this shell"`
 	NamedPipe                      string        `usage:"Optional path to create and read a named pipe for console input"`
 	WebsocketConsole               bool          `usage:"Allow remote shell over websocket"`
+	WebsocketAddress               string        `default:":80" usage:"Bind address for websocket server" env:"WEBSOCKET_ADDRESS"`
 	WebsocketDisableAuthentication bool          `default:"false" usage:"Disable websocket authentication" env:"WEBSOCKET_DISABLE_AUTHENTICATION"`
 }
 
@@ -75,6 +76,9 @@ func main() {
 		logger.Error("Unable to get stdin", zap.Error(err))
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	errorChan := make(chan error, 1)
+
 	type writers []io.Writer
 	var stdoutWritersList writers
 	var stderrWritersList writers
@@ -88,7 +92,8 @@ func main() {
 		stdoutWritersList = append(stdoutWritersList, wsOutWriter)
 		stderrWritersList = append(stderrWritersList, wsErrWriter)
 
-		go runWebsocketServer(logger, wsOutWriter, wsErrWriter, stdin, args.WebsocketDisableAuthentication)
+		go runWebsocketServer(ctx, logger, errorChan, wsOutWriter, wsErrWriter, stdin, args.WebsocketDisableAuthentication,
+			args.WebsocketAddress)
 	}
 
 	if args.RemoteConsole {
@@ -151,9 +156,6 @@ func main() {
 		}
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	errorChan := make(chan error, 1)
-
 	if args.NamedPipe != "" {
 		err2 := handleNamedPipe(ctx, args.NamedPipe, stdin, errorChan)
 		if err2 != nil {
@@ -186,6 +188,7 @@ func main() {
 		case <-termChan:
 			logger.Debug("SIGTERM caught")
 			logger.Info("gracefully stopping server...")
+			cancel()
 			if args.StopServerAnnounceDelay > 0 {
 				announceStop(logger, stdin, args.StopServerAnnounceDelay)
 				logger.Info("Sleeping before server stop", zap.Duration("sleepTime", args.StopServerAnnounceDelay))
@@ -201,17 +204,21 @@ func main() {
 			if timer != nil {
 				if timer.Stop() {
 					logger.Info("SIGUSR1 caught, bypassing running StopServerAnnounceDelay")
+					cancel()
 					terminate(logger, stdin, cmd, args.StopDuration, args.StopCommand)
 				} else {
 					logger.Info("SIGUSR1 caught, StopServerAnnounceDelay already elapsed, server is already stopping")
 				}
 			} else {
 				logger.Info("SIGUSR1 caught, gracefully stopping server... (without StopServerAnnounceDelay)")
+				cancel()
 				terminate(logger, stdin, cmd, args.StopDuration, args.StopCommand)
 			}
 
-		case namedPipeErr := <-errorChan:
-			logger.Error("Error during named pipe handling", zap.Error(namedPipeErr))
+		case backgroundErr := <-errorChan:
+			logger.Error("Error during background processing", zap.Error(backgroundErr))
+			cancel()
+			terminate(logger, stdin, cmd, args.StopDuration, args.StopCommand)
 
 		case exitCode := <-cmdExitChan:
 			cancel()

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -253,10 +254,13 @@ func (s *websocketServer) broadcast(msg string) {
 	}
 }
 
-func runWebsocketServer(logger *zap.Logger, stdoutWriter *wsWriter, stderrWriter *wsWriter, stdin io.Writer, disableAuth bool) error {
-	l, err := net.Listen("tcp", "0.0.0.0:80")
+func runWebsocketServer(ctx context.Context, logger *zap.Logger, errorChan chan error,
+	stdoutWriter *wsWriter, stderrWriter *wsWriter, stdin io.Writer,
+	disableAuth bool, address string) {
+	l, err := net.Listen("tcp", address)
 	if err != nil {
-		return err
+		errorChan <- fmt.Errorf("failed to setup websocket server on %s: %w", address, err)
+		return
 	}
 	logger.Info(fmt.Sprintf("Starting websocket on ws://%v", l.Addr()))
 
@@ -275,16 +279,23 @@ func runWebsocketServer(logger *zap.Logger, stdoutWriter *wsWriter, stderrWriter
 	stdoutWriter.server = s.Handler.(*websocketServer)
 	stderrWriter.server = s.Handler.(*websocketServer)
 
-	errc := make(chan error, 1)
 	go func() {
-		errc <- s.Serve(l)
+		serveErr := s.Serve(l)
+		if serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+			errorChan <- fmt.Errorf("failed to serve websocket server: %w", serveErr)
+		}
 	}()
 
-	err = <-errc
-	logger.Error("failed to serve: %v", zap.Error(err))
+	defer func() {
+		timedCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		defer cancel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
+		logger.Debug("shutting down websocket server")
+		shutdownErr := s.Shutdown(timedCtx)
+		if shutdownErr != nil {
+			logger.Error("failed to shutdown server", zap.Error(shutdownErr))
+		}
+	}()
 
-	return s.Shutdown(ctx)
+	<-ctx.Done()
 }
