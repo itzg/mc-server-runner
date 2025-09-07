@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -78,6 +79,7 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	errorChan := make(chan error, 1)
+	var backgroundFinished sync.WaitGroup
 
 	type writers []io.Writer
 	var stdoutWritersList writers
@@ -92,7 +94,8 @@ func main() {
 		stdoutWritersList = append(stdoutWritersList, wsOutWriter)
 		stderrWritersList = append(stderrWritersList, wsErrWriter)
 
-		go runWebsocketServer(ctx, logger, errorChan, wsOutWriter, wsErrWriter, stdin, args.WebsocketDisableAuthentication,
+		backgroundFinished.Add(1)
+		go runWebsocketServer(ctx, logger, errorChan, &backgroundFinished, wsOutWriter, wsErrWriter, stdin, args.WebsocketDisableAuthentication,
 			args.WebsocketAddress)
 	}
 
@@ -222,6 +225,8 @@ func main() {
 
 		case exitCode := <-cmdExitChan:
 			cancel()
+			logger.Debug("Waiting on background processes to finish")
+			backgroundFinished.Wait()
 			logger.Info("Done")
 			os.Exit(exitCode)
 		}

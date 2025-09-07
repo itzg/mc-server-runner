@@ -254,9 +254,7 @@ func (s *websocketServer) broadcast(msg string) {
 	}
 }
 
-func runWebsocketServer(ctx context.Context, logger *zap.Logger, errorChan chan error,
-	stdoutWriter *wsWriter, stderrWriter *wsWriter, stdin io.Writer,
-	disableAuth bool, address string) {
+func runWebsocketServer(ctx context.Context, logger *zap.Logger, errorChan chan error, finished *sync.WaitGroup, stdoutWriter *wsWriter, stderrWriter *wsWriter, stdin io.Writer, disableAuth bool, address string) {
 	l, err := net.Listen("tcp", address)
 	if err != nil {
 		errorChan <- fmt.Errorf("failed to setup websocket server on %s: %w", address, err)
@@ -284,6 +282,8 @@ func runWebsocketServer(ctx context.Context, logger *zap.Logger, errorChan chan 
 		if serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
 			errorChan <- fmt.Errorf("failed to serve websocket server: %w", serveErr)
 		}
+
+		finished.Done()
 	}()
 
 	defer func() {
