@@ -82,8 +82,8 @@ func main() {
 	stderrWritersList = append(stderrWritersList, os.Stderr)
 
 	if args.WebsocketConsole {
-		wsOutWriter := &wsWriter{prefix: ""}
-		wsErrWriter := &wsWriter{prefix: "[stderr] "}
+		wsOutWriter := &wsWriter{}
+		wsErrWriter := &wsWriter{}
 
 		stdoutWritersList = append(stdoutWritersList, wsOutWriter)
 		stderrWritersList = append(stderrWritersList, wsErrWriter)

@@ -216,14 +216,10 @@ func echo(c *websocket.Conn, s *websocketServer, ctx context.Context) error {
 
 type wsWriter struct {
 	server *websocketServer
-	prefix string
 }
 
 func (b *wsWriter) Write(p []byte) (int, error) {
 	msg := string(p)
-	if b.prefix != "" {
-		msg = b.prefix + msg
-	}
 	if b.server != nil {
 		b.server.broadcast(msg)
 	}
