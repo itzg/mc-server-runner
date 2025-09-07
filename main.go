@@ -20,16 +20,17 @@ import (
 )
 
 type Args struct {
-	Debug                   bool          `usage:"Enable debug logging"`
-	Bootstrap               string        `usage:"Specifies a file with commands to initially send to the server"`
-	StopCommand             string        `default:"stop" usage:"Which command to send to the server to stop it"`
-	StopDuration            time.Duration `usage:"Amount of time in Golang duration to wait after sending the 'stop' command."`
-	StopServerAnnounceDelay time.Duration `default:"0s" usage:"Amount of time in Golang duration to wait after announcing server shutdown"`
-	DetachStdin             bool          `usage:"Don't forward stdin and allow process to be put in background"`
-	RemoteConsole           bool          `usage:"Allow remote shell connections over SSH to server console"`
-	Shell                   string        `usage:"When set, pass the arguments to this shell"`
-	NamedPipe               string        `usage:"Optional path to create and read a named pipe for console input"`
-	WebsocketConsole        bool          `usage:"Allow remote shell over websocket"`
+	Debug                          bool          `usage:"Enable debug logging"`
+	Bootstrap                      string        `usage:"Specifies a file with commands to initially send to the server"`
+	StopCommand                    string        `default:"stop" usage:"Which command to send to the server to stop it"`
+	StopDuration                   time.Duration `usage:"Amount of time in Golang duration to wait after sending the 'stop' command."`
+	StopServerAnnounceDelay        time.Duration `default:"0s" usage:"Amount of time in Golang duration to wait after announcing server shutdown"`
+	DetachStdin                    bool          `usage:"Don't forward stdin and allow process to be put in background"`
+	RemoteConsole                  bool          `usage:"Allow remote shell connections over SSH to server console"`
+	Shell                          string        `usage:"When set, pass the arguments to this shell"`
+	NamedPipe                      string        `usage:"Optional path to create and read a named pipe for console input"`
+	WebsocketConsole               bool          `usage:"Allow remote shell over websocket"`
+	WebsocketDisableAuthentication bool          `usage:"Disable websocket authentication" env:"WEBSOCKET_DISABLE_AUTHENTICATION"`
 }
 
 func main() {
@@ -87,7 +88,7 @@ func main() {
 		stdoutWritersList = append(stdoutWritersList, wsOutWriter)
 		stderrWritersList = append(stderrWritersList, wsErrWriter)
 
-		go runWebsocketServer(logger, wsOutWriter, wsErrWriter, stdin)
+		go runWebsocketServer(logger, wsOutWriter, wsErrWriter, stdin, args.WebsocketDisableAuthentication)
 	}
 
 	if args.RemoteConsole {

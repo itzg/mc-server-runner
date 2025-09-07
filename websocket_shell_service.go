@@ -80,10 +80,11 @@ type WsClient struct {
 }
 
 type websocketServer struct {
-	logger  *zap.Logger
-	stdin   io.Writer
-	clients map[uuid.UUID]*WsClient
-	mu      sync.Mutex
+	logger      *zap.Logger
+	stdin       io.Writer
+	clients     map[uuid.UUID]*WsClient
+	mu          sync.Mutex
+	disableAuth bool
 }
 
 func getWebsocketPassword() string {
@@ -103,17 +104,19 @@ func getWebsocketPassword() string {
 }
 
 func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	password := r.Header.Get("X-WS-Auth")
-	if password != getWebsocketPassword() {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
+	if !s.disableAuth {
+		password := r.Header.Get("X-WS-Auth")
+		if password != getWebsocketPassword() {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
 
-		errMsg := AuthErrorMessage{
-			Type:   MessageTypeAuthError,
-			Reason: "invalid password",
+			errMsg := AuthErrorMessage{
+				Type:   MessageTypeAuthError,
+				Reason: "invalid password",
+			}
+			json.NewEncoder(w).Encode(errMsg)
+			return
 		}
-		json.NewEncoder(w).Encode(errMsg)
-		return
 	}
 
 	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
@@ -254,7 +257,7 @@ func (s *websocketServer) broadcast(msg string) {
 	}
 }
 
-func runWebsocketServer(logger *zap.Logger, stdoutWriter *wsWriter, stderrWriter *wsWriter, stdin io.Writer) error {
+func runWebsocketServer(logger *zap.Logger, stdoutWriter *wsWriter, stderrWriter *wsWriter, stdin io.Writer, disableAuth bool) error {
 	l, err := net.Listen("tcp", "0.0.0.0:80")
 	if err != nil {
 		return err
@@ -267,6 +270,7 @@ func runWebsocketServer(logger *zap.Logger, stdoutWriter *wsWriter, stderrWriter
 			stdin,
 			map[uuid.UUID]*WsClient{},
 			sync.Mutex{},
+			disableAuth,
 		},
 		ReadTimeout:  time.Second * 10,
 		WriteTimeout: time.Second * 10,
