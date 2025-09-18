@@ -61,7 +61,7 @@ func (m StderrMessage) GetType() string { return string(m.Type) }
 
 type WelcomeMessage struct {
 	Type        MessageType `json:"type"`
-	RecentLines []string    `json:"RecentLines"`
+	RecentLines []string    `json:"recentLines"`
 }
 
 func (m WelcomeMessage) GetType() string { return string(m.Type) }
