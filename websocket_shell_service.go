@@ -88,6 +88,55 @@ type websocketServer struct {
 	disableAuth bool
 }
 
+type logLinesRingBuffer struct {
+	data  [50]string
+	size  int
+	start int
+	end   int
+	full  bool
+	mu    sync.RWMutex
+}
+
+func (rb *logLinesRingBuffer) Add(s string) {
+	rb.mu.Lock()
+	defer rb.mu.Unlock()
+
+	rb.data[rb.end] = s
+	rb.end = (rb.end + 1) % len(rb.data)
+
+	if rb.full {
+		rb.start = (rb.start + 1) % len(rb.data)
+	} else if rb.end == rb.start {
+		rb.full = true
+	}
+	if !rb.full {
+		rb.size++
+	}
+}
+
+func (rb *logLinesRingBuffer) GetAll() []string {
+	rb.mu.RLock()
+	defer rb.mu.RUnlock()
+
+	if !rb.full && rb.size == 0 {
+		return []string{}
+	}
+
+	var result []string
+	if rb.full {
+		for i := 0; i < len(rb.data); i++ {
+			index := (rb.start + i) % len(rb.data)
+			result = append(result, rb.data[index])
+		}
+	} else {
+		for i := 0; i < rb.size; i++ {
+			index := (rb.start + i) % len(rb.data)
+			result = append(result, rb.data[index])
+		}
+	}
+	return result
+}
+
 func getWebsocketPassword() string {
 	var password string
 
@@ -103,6 +152,8 @@ func getWebsocketPassword() string {
 
 	return "minecraft"
 }
+
+var logHistory = &logLinesRingBuffer{}
 
 func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !s.disableAuth {
@@ -144,6 +195,11 @@ func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go heartbeatRoutine(ctx, s.logger, c, 30*time.Second)
+
+	wsjson.Write(ctx, c, WelcomeMessage{
+		Type:        MessageTypeWelcome,
+		RecentLines: logHistory.GetAll(),
+	})
 
 	for {
 		err = handleIncoming(c, s, ctx)
@@ -223,6 +279,7 @@ func (b *wsWriter) Write(p []byte) (int, error) {
 	msg := string(p)
 	if b.server != nil {
 		b.server.broadcast(msg)
+		logHistory.Add(msg)
 	}
 	return len(p), nil
 }
