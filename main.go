@@ -31,7 +31,7 @@ type Args struct {
 	Shell                          string        `usage:"When set, pass the arguments to this shell"`
 	NamedPipe                      string        `usage:"Optional path to create and read a named pipe for console input"`
 	WebsocketConsole               bool          `usage:"Allow remote shell over websocket"`
-	WebsocketAddress               string        `default:":80" usage:"Bind address for websocket server" env:"WEBSOCKET_ADDRESS"`
+	WebsocketAddress               string        `default:"0.0.0.0:80" usage:"Bind address for websocket server" env:"WEBSOCKET_ADDRESS"`
 	WebsocketDisableAuthentication bool          `default:"false" usage:"Disable websocket authentication" env:"WEBSOCKET_DISABLE_AUTHENTICATION"`
 }
 
