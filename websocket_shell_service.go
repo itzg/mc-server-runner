@@ -196,12 +196,10 @@ func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	go heartbeatRoutine(ctx, s.logger, c, 30*time.Second)
 
-	if r.Header.Get("X-Request-Recent-Lines") != "" {
-		wsjson.Write(ctx, c, WelcomeMessage{
-			Type:        MessageTypeWelcome,
-			RecentLines: logHistory.GetAll(),
-		})
-	}
+	wsjson.Write(ctx, c, WelcomeMessage{
+		Type:        MessageTypeWelcome,
+		RecentLines: logHistory.GetAll(),
+	})
 
 	for {
 		err = handleIncoming(c, s, ctx)
