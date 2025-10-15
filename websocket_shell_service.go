@@ -141,12 +141,40 @@ func getWebsocketPassword() string {
 	return "minecraft"
 }
 
-var logHistory = &logLinesRingBuffer{}
+func extractAuthTokenFromProtocols(header http.Header, expectedProto string) (string, bool) {
+	protoHeader := header.Get("Sec-WebSocket-Protocol")
+	if protoHeader == "" {
+		return "", false
+	}
+
+	protocols := strings.Split(protoHeader, ",")
+
+	for i, p := range protocols {
+		tp := strings.TrimSpace(p)
+
+		if tp == expectedProto {
+			if i+1 > len(protocols) {
+				return "", false
+			}
+			token := strings.TrimSpace(protocols[i+1])
+
+			if token != "" {
+				return token, true
+			}
+		}
+	}
+	return "", false
+}
+
+var logHistory = newLogRing(50)
 
 func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !s.disableAuth {
-		password := r.Header.Get("X-WS-Auth")
-		if password != getWebsocketPassword() {
+		// Authentication header should be extracted here. This is similar to how Minecraft's JSON-RPC over Websocket API works.
+		// expect string: "mc-server-runner-ws-v1, <TOKEN HERE>"
+		token, exists := extractAuthTokenFromProtocols(r.Header, "mc-server-runner-ws-v1")
+
+		if !exists || token != getWebsocketPassword() {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 
