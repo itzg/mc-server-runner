@@ -335,26 +335,40 @@ func handleIncoming(c *websocket.Conn, s *websocketServer, ctx context.Context) 
 }
 
 type wsWriter struct {
-	server *websocketServer
+	writerType messageType
+	server     *websocketServer
 }
 
 func (b *wsWriter) Write(p []byte) (int, error) {
 	msg := string(p)
 	if b.server != nil {
-		b.server.broadcast(msg)
+		b.server.broadcast(msg, b.writerType)
 		logHistory.add(msg)
 	}
 	return len(p), nil
 }
 
-func (s *websocketServer) broadcast(msg string) {
+func (s *websocketServer) broadcast(msg string, msgType messageType) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	for id, client := range s.clients {
 		client.writeMutex.Lock()
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		var message wsMessage
+		switch msgType {
+		case MessageTypeStdout:
 			message = &stdoutMessage{
+				Type:    MessageTypeStdout,
+				Content: string([]byte(msg)),
+				Time:    time.Now(),
+			}
+		case MessageTypeStderr:
+			message = &stderrMessage{
+				Type:    MessageTypeStderr,
+				Content: string([]byte(msg)),
+				Time:    time.Now(),
+			}
 		}
 		err := wsjson.Write(ctx, client.wsConn, message)
 		cancel()
