@@ -218,16 +218,17 @@ func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	})
 
 	for {
-		err = handleIncoming(c, s, ctx)
-		if websocket.CloseStatus(err) == websocket.StatusNormalClosure {
-			s.logger.Info(fmt.Sprintf("Websocket connection closed with %v", r.RemoteAddr))
-			return
-		}
-		if websocket.CloseStatus(err) == websocket.StatusGoingAway {
-			s.logger.Info(fmt.Sprintf("%v is going away", r.RemoteAddr))
-			return
-		}
-		if err != nil {
+		if err = handleIncoming(c, s, ctx); err != nil {
+			s.logger.Debug("closing websocket session", zap.String("sessionId", sessionId.String()))
+			delete(s.clients, sessionId)
+			if websocket.CloseStatus(err) == websocket.StatusNormalClosure {
+				s.logger.Info(fmt.Sprintf("Websocket connection closed with %v", r.RemoteAddr))
+				return
+			}
+			if websocket.CloseStatus(err) == websocket.StatusGoingAway {
+				s.logger.Info(fmt.Sprintf("%v is going away", r.RemoteAddr))
+				return
+			}
 			s.logger.Error(fmt.Sprintf("failed to echo with %v", r.RemoteAddr), zap.Error(err))
 			return
 		}
