@@ -22,60 +22,60 @@ import (
 	// "golang.org/x/time/rate"
 )
 
-type MessageType string
+type messageType string
 
 const (
 	// Client -> Server
-	MessageTypeStdin MessageType = "stdin"
+	MessageTypeStdin messageType = "stdin"
 	// Server -> Client
-	MessageTypeStdout    MessageType = "stdout"
-	MessageTypeStderr    MessageType = "stderr"
-	MessageTypeWelcome   MessageType = "welcome"
-	MessageTypeAuthError MessageType = "auth_err"
+	MessageTypeStdout    messageType = "stdout"
+	MessageTypeStderr    messageType = "stderr"
+	MessageTypeWelcome   messageType = "welcome"
+	MessageTypeAuthError messageType = "auth_err"
 )
 
-type Message interface {
-	GetType() string
+type wsMessage interface {
+	getType() string
 }
 
-type StdinMessage struct {
-	Type    MessageType `json:"type"`
+type stdinMessage struct {
+	Type    messageType `json:"type"`
 	Content string      `json:"content"`
 }
 
-func (m StdinMessage) GetType() string { return string(m.Type) }
+func (m stdinMessage) getType() string { return string(m.Type) }
 
-type StdoutMessage struct {
-	Type    MessageType `json:"type"`
-	Content string      `json:"content"`
-	Time    time.Time   `json:"time,omitzero"`
-}
-
-func (m StdoutMessage) GetType() string { return string(m.Type) }
-
-type StderrMessage struct {
-	Type    MessageType `json:"type"`
+type stdoutMessage struct {
+	Type    messageType `json:"type"`
 	Content string      `json:"content"`
 	Time    time.Time   `json:"time,omitzero"`
 }
 
-func (m StderrMessage) GetType() string { return string(m.Type) }
+func (m stdoutMessage) getType() string { return string(m.Type) }
 
-type WelcomeMessage struct {
-	Type        MessageType `json:"type"`
+type stderrMessage struct {
+	Type    messageType `json:"type"`
+	Content string      `json:"content"`
+	Time    time.Time   `json:"time,omitzero"`
+}
+
+func (m stderrMessage) getType() string { return string(m.Type) }
+
+type welcomeMessage struct {
+	Type        messageType `json:"type"`
 	RecentLines []string    `json:"recentLines"`
 }
 
-func (m WelcomeMessage) GetType() string { return string(m.Type) }
+func (m welcomeMessage) getType() string { return string(m.Type) }
 
-type AuthErrorMessage struct {
-	Type   MessageType `json:"type"`
+type authErrorMessage struct {
+	Type   messageType `json:"type"`
 	Reason string      `json:"reason"`
 }
 
-func (m AuthErrorMessage) GetType() string { return string(m.Type) }
+func (m authErrorMessage) getType() string { return string(m.Type) }
 
-type WsClient struct {
+type wsClient struct {
 	wsConn         *websocket.Conn
 	responseWriter http.ResponseWriter
 	request        http.Request
@@ -85,25 +85,25 @@ type WsClient struct {
 type websocketServer struct {
 	logger             *zap.Logger
 	stdin              io.Writer
-	clients            map[uuid.UUID]*WsClient
+	clients            map[uuid.UUID]*wsClient
 	mu                 sync.Mutex
 	disableAuth        bool
 	trustedOrigins     []string
 	disableOriginCheck bool
 }
 
-type LogRing struct {
+type logRing struct {
 	r  *ring.Ring
 	mu sync.RWMutex
 }
 
-func newLogRing(logBufferSize int) *LogRing {
-	return &LogRing{
+func newLogRing(logBufferSize int) *logRing {
+	return &logRing{
 		r: ring.New(logBufferSize),
 	}
 }
 
-func (lr *LogRing) Add(s string) {
+func (lr *logRing) add(s string) {
 	lr.mu.Lock()
 	defer lr.mu.Unlock()
 
@@ -111,7 +111,7 @@ func (lr *LogRing) Add(s string) {
 	lr.r.Value = s
 }
 
-func (lr *LogRing) GetAll() []string {
+func (lr *logRing) getAll() []string {
 	lr.mu.RLock()
 	defer lr.mu.RUnlock()
 
@@ -183,7 +183,7 @@ func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)
 
-			errMsg := AuthErrorMessage{
+			errMsg := authErrorMessage{
 				Type:   MessageTypeAuthError,
 				Reason: "origin not allowed",
 			}
@@ -206,7 +206,7 @@ func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 
-			errMsg := AuthErrorMessage{
+			errMsg := authErrorMessage{
 				Type:   MessageTypeAuthError,
 				Reason: "invalid password",
 			}
@@ -231,7 +231,7 @@ func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	s.mu.Lock()
 	sessionId := uuid.New()
-	s.clients[sessionId] = &WsClient{
+	s.clients[sessionId] = &wsClient{
 		c,
 		w,
 		*r,
@@ -245,9 +245,9 @@ func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	go heartbeatRoutine(ctx, s.logger, c, 30*time.Second)
 
-	wsjson.Write(ctx, c, WelcomeMessage{
+	wsjson.Write(ctx, c, welcomeMessage{
 		Type:        MessageTypeWelcome,
-		RecentLines: logHistory.GetAll(),
+		RecentLines: logHistory.getAll(),
 	})
 
 	for {
@@ -319,7 +319,7 @@ func handleIncoming(c *websocket.Conn, s *websocketServer, ctx context.Context) 
 
 			s.logger.Debug(fmt.Sprintf("Received raw data: %q\n", string(data)))
 
-			var msg StdinMessage
+			var msg stdinMessage
 			if err := json.Unmarshal(data, &msg); err != nil {
 				s.logger.Error(fmt.Sprintf("JSON parse error: %v\n", err))
 			} else {
@@ -342,7 +342,7 @@ func (b *wsWriter) Write(p []byte) (int, error) {
 	msg := string(p)
 	if b.server != nil {
 		b.server.broadcast(msg)
-		logHistory.Add(msg)
+		logHistory.add(msg)
 	}
 	return len(p), nil
 }
@@ -354,10 +354,7 @@ func (s *websocketServer) broadcast(msg string) {
 	for id, client := range s.clients {
 		client.writeMutex.Lock()
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		message := &StdoutMessage{
-			Type:    MessageTypeStdout,
-			Content: string([]byte(msg)),
-			Time:    time.Now(),
+			message = &stdoutMessage{
 		}
 		err := wsjson.Write(ctx, client.wsConn, message)
 		cancel()
@@ -392,7 +389,7 @@ func runWebsocketServer(ctx context.Context, logger *zap.Logger, errorChan chan 
 		Handler: &websocketServer{
 			logger,
 			stdin,
-			map[uuid.UUID]*WsClient{},
+			map[uuid.UUID]*wsClient{},
 			sync.Mutex{},
 			disableAuth,
 			trustedOrigins,
