@@ -209,6 +209,10 @@ func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			s.logger.Info(fmt.Sprintf("Websocket connection closed with %v", r.RemoteAddr))
 			return
 		}
+		if websocket.CloseStatus(err) == websocket.StatusGoingAway {
+			s.logger.Info(fmt.Sprintf("%v is going away", r.RemoteAddr))
+			return
+		}
 		if err != nil {
 			s.logger.Error(fmt.Sprintf("failed to echo with %v", r.RemoteAddr), zap.Error(err))
 			return
