@@ -173,7 +173,7 @@ func isOriginAllowed(origin string, trustedOrigins []string) bool {
 	return slices.Contains(trustedOrigins, origin)
 }
 
-var logHistory = newLogRing(50)
+var logHistory *logRing
 
 func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !s.disableOriginCheck {
@@ -385,12 +385,13 @@ func (s *websocketServer) broadcast(msg string, msgType messageType) {
 	}
 }
 
-func runWebsocketServer(ctx context.Context, logger *zap.Logger, errorChan chan error, finished *sync.WaitGroup, stdoutWriter *wsWriter, stderrWriter *wsWriter, stdin io.Writer, disableAuth bool, address string, trustedOrigins []string, disableOriginCheck bool) {
+func runWebsocketServer(ctx context.Context, logger *zap.Logger, errorChan chan error, finished *sync.WaitGroup, stdoutWriter *wsWriter, stderrWriter *wsWriter, stdin io.Writer, disableAuth bool, address string, trustedOrigins []string, disableOriginCheck bool, logBufferSize int) {
 	l, err := net.Listen("tcp", address)
 	if err != nil {
 		errorChan <- fmt.Errorf("failed to setup websocket server on %s: %w", address, err)
 		return
 	}
+	logHistory = newLogRing(int(logBufferSize))
 	logger.Info(fmt.Sprintf("Starting websocket server on ws://%v", l.Addr()))
 	if disableAuth {
 		logger.Warn("Websocket authentication is DISABLED. The websocket endpoint is unprotected and will accept commands from any client. This is insecure and not recommended for production.")

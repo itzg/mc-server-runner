@@ -35,6 +35,7 @@ type Args struct {
 	WebsocketDisableOriginCheck    bool          `default:"false" usage:"Disable checking if origin is trusted" env:"WEBSOCKET_DISABLE_ORIGIN_CHECK"`
 	WebsocketTrustedOrigins        []string      `default:"" usage:"Comma-separated list of trusted origins" env:"WEBSOCKET_TRUSTED_ORIGINS"`
 	WebsocketDisableAuthentication bool          `default:"false" usage:"Disable websocket authentication" env:"WEBSOCKET_DISABLE_AUTHENTICATION"`
+	WebsocketLogBufferSize         int           `default:"50" usage:"Number of log lines to save and send to connecting clients" env:"WEBSOCKET_LOG_BUFFER_SIZE"`
 }
 
 func main() {
@@ -102,7 +103,7 @@ func main() {
 
 		backgroundFinished.Add(1)
 		go runWebsocketServer(ctx, logger, errorChan, &backgroundFinished, wsOutWriter, wsErrWriter, stdin, args.WebsocketDisableAuthentication,
-			args.WebsocketAddress, args.WebsocketTrustedOrigins, args.WebsocketDisableOriginCheck)
+			args.WebsocketAddress, args.WebsocketTrustedOrigins, args.WebsocketDisableOriginCheck, args.WebsocketLogBufferSize)
 	}
 
 	if args.RemoteConsole {
