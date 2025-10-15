@@ -32,6 +32,8 @@ type Args struct {
 	NamedPipe                      string        `usage:"Optional path to create and read a named pipe for console input"`
 	WebsocketConsole               bool          `usage:"Allow remote shell over websocket"`
 	WebsocketAddress               string        `default:"0.0.0.0:80" usage:"Bind address for websocket server" env:"WEBSOCKET_ADDRESS"`
+	WebsocketDisableOriginCheck    bool          `default:"false" usage:"Disable checking if origin is trusted" env:"WEBSOCKET_DISABLE_ORIGIN_CHECK"`
+	WebsocketTrustedOrigins        []string      `default:"" usage:"Comma-separated list of trusted origins" env:"WEBSOCKET_TRUSTED_ORIGINS"`
 	WebsocketDisableAuthentication bool          `default:"false" usage:"Disable websocket authentication" env:"WEBSOCKET_DISABLE_AUTHENTICATION"`
 }
 
@@ -96,7 +98,7 @@ func main() {
 
 		backgroundFinished.Add(1)
 		go runWebsocketServer(ctx, logger, errorChan, &backgroundFinished, wsOutWriter, wsErrWriter, stdin, args.WebsocketDisableAuthentication,
-			args.WebsocketAddress)
+			args.WebsocketAddress, args.WebsocketTrustedOrigins, args.WebsocketDisableOriginCheck)
 	}
 
 	if args.RemoteConsole {

@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -82,11 +83,13 @@ type WsClient struct {
 }
 
 type websocketServer struct {
-	logger      *zap.Logger
-	stdin       io.Writer
-	clients     map[uuid.UUID]*WsClient
-	mu          sync.Mutex
-	disableAuth bool
+	logger             *zap.Logger
+	stdin              io.Writer
+	clients            map[uuid.UUID]*WsClient
+	mu                 sync.Mutex
+	disableAuth        bool
+	trustedOrigins     []string
+	disableOriginCheck bool
 }
 
 type LogRing struct {
@@ -166,9 +169,34 @@ func extractAuthTokenFromProtocols(header http.Header, expectedProto string) (st
 	return "", false
 }
 
+func isOriginAllowed(origin string, trustedOrigins []string) bool {
+	return slices.Contains(trustedOrigins, origin)
+}
+
 var logHistory = newLogRing(50)
 
 func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if !s.disableOriginCheck {
+		origin := r.Header.Get("Origin")
+
+		if !isOriginAllowed(origin, s.trustedOrigins) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+
+			errMsg := AuthErrorMessage{
+				Type:   MessageTypeAuthError,
+				Reason: "origin not allowed",
+			}
+			json.NewEncoder(w).Encode(errMsg)
+			s.logger.Info(
+				"Websocket connection rejected",
+				zap.String("addr", r.RemoteAddr),
+				zap.String("reason", "origin not allowed"),
+			)
+			return
+		}
+	}
+
 	if !s.disableAuth {
 		// Authentication header should be extracted here. This is similar to how Minecraft's JSON-RPC over Websocket API works.
 		// expect string: "mc-server-runner-ws-v1, <TOKEN HERE>"
@@ -183,6 +211,11 @@ func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				Reason: "invalid password",
 			}
 			json.NewEncoder(w).Encode(errMsg)
+			s.logger.Info(
+				"Websocket connection rejected",
+				zap.String("addr", r.RemoteAddr),
+				zap.String("reason", "invalid password"),
+			)
 			return
 		}
 	}
@@ -341,13 +374,19 @@ func (s *websocketServer) broadcast(msg string) {
 	}
 }
 
-func runWebsocketServer(ctx context.Context, logger *zap.Logger, errorChan chan error, finished *sync.WaitGroup, stdoutWriter *wsWriter, stderrWriter *wsWriter, stdin io.Writer, disableAuth bool, address string) {
+func runWebsocketServer(ctx context.Context, logger *zap.Logger, errorChan chan error, finished *sync.WaitGroup, stdoutWriter *wsWriter, stderrWriter *wsWriter, stdin io.Writer, disableAuth bool, address string, trustedOrigins []string, disableOriginCheck bool) {
 	l, err := net.Listen("tcp", address)
 	if err != nil {
 		errorChan <- fmt.Errorf("failed to setup websocket server on %s: %w", address, err)
 		return
 	}
-	logger.Info(fmt.Sprintf("Starting websocket on ws://%v", l.Addr()))
+	logger.Info(fmt.Sprintf("Starting websocket server on ws://%v", l.Addr()))
+	if disableAuth {
+		logger.Warn("Websocket authentication is DISABLED. The websocket endpoint is unprotected and will accept commands from any client. This is insecure and not recommended for production.")
+	}
+	if disableOriginCheck {
+		logger.Warn("Origin check is DISABLED. The server will accept connections from browsers on ANY website, making it vulnerable to Cross-Site WebSocket Hijacking (CSWSH).")
+	}
 
 	s := &http.Server{
 		Handler: &websocketServer{
@@ -356,6 +395,8 @@ func runWebsocketServer(ctx context.Context, logger *zap.Logger, errorChan chan 
 			map[uuid.UUID]*WsClient{},
 			sync.Mutex{},
 			disableAuth,
+			trustedOrigins,
+			disableOriginCheck,
 		},
 		ReadTimeout:  time.Second * 10,
 		WriteTimeout: time.Second * 10,
