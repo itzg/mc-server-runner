@@ -1,6 +1,7 @@
 package main
 
 import (
+	"container/ring"
 	"context"
 	"encoding/json"
 	"errors"
@@ -88,52 +89,39 @@ type websocketServer struct {
 	disableAuth bool
 }
 
-type logLinesRingBuffer struct {
-	data  [50]string
-	size  int
-	start int
-	end   int
-	full  bool
-	mu    sync.RWMutex
+type LogRing struct {
+	r  *ring.Ring
+	mu sync.RWMutex
 }
 
-func (rb *logLinesRingBuffer) Add(s string) {
-	rb.mu.Lock()
-	defer rb.mu.Unlock()
-
-	rb.data[rb.end] = s
-	rb.end = (rb.end + 1) % len(rb.data)
-
-	if rb.full {
-		rb.start = (rb.start + 1) % len(rb.data)
-	} else if rb.end == rb.start {
-		rb.full = true
-	}
-	if !rb.full {
-		rb.size++
+func newLogRing(logBufferSize int) *LogRing {
+	return &LogRing{
+		r: ring.New(logBufferSize),
 	}
 }
 
-func (rb *logLinesRingBuffer) GetAll() []string {
-	rb.mu.RLock()
-	defer rb.mu.RUnlock()
+func (lr *LogRing) Add(s string) {
+	lr.mu.Lock()
+	defer lr.mu.Unlock()
 
-	if !rb.full && rb.size == 0 {
-		return []string{}
-	}
+	lr.r = lr.r.Next()
+	lr.r.Value = s
+}
+
+func (lr *LogRing) GetAll() []string {
+	lr.mu.RLock()
+	defer lr.mu.RUnlock()
 
 	var result []string
-	if rb.full {
-		for i := 0; i < len(rb.data); i++ {
-			index := (rb.start + i) % len(rb.data)
-			result = append(result, rb.data[index])
+
+	startNode := lr.r.Next()
+
+	startNode.Do(func(v any) {
+		if v != nil {
+			result = append(result, v.(string))
 		}
-	} else {
-		for i := 0; i < rb.size; i++ {
-			index := (rb.start + i) % len(rb.data)
-			result = append(result, rb.data[index])
-		}
-	}
+	})
+
 	return result
 }
 
