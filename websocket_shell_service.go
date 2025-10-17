@@ -38,24 +38,24 @@ type wsMessage interface {
 }
 
 type stdinMessage struct {
-	Type    messageType `json:"type"`
-	Content string      `json:"content"`
+	Type messageType `json:"type"`
+	Data string      `json:"data"`
 }
 
 func (m stdinMessage) getType() string { return string(m.Type) }
 
 type stdoutMessage struct {
-	Type    messageType `json:"type"`
-	Content string      `json:"content"`
-	Time    time.Time   `json:"time,omitzero"`
+	Type messageType `json:"type"`
+	Data string      `json:"data"`
+	Time time.Time   `json:"time,omitzero"`
 }
 
 func (m stdoutMessage) getType() string { return string(m.Type) }
 
 type stderrMessage struct {
-	Type    messageType `json:"type"`
-	Content string      `json:"content"`
-	Time    time.Time   `json:"time,omitzero"`
+	Type messageType `json:"type"`
+	Data string      `json:"data"`
+	Time time.Time   `json:"time,omitzero"`
 }
 
 func (m stderrMessage) getType() string { return string(m.Type) }
@@ -325,11 +325,11 @@ func handleIncoming(c *websocket.Conn, s *websocketServer, ctx context.Context) 
 				s.logger.Debug(fmt.Sprintf("Successfully parsed JSON: %+v\n", msg))
 				switch msg.Type {
 				case MessageTypeStdin:
-					content := msg.Content
-					if !strings.HasSuffix(content, "\n") {
-						content += "\n"
+					data := msg.Data
+					if !strings.HasSuffix(data, "\n") {
+						data += "\n"
 					}
-					s.stdin.Write([]byte(content))
+					s.stdin.Write([]byte(data))
 				default:
 					s.logger.Warn("unknown message type",
 						zap.String("type", string(msg.Type)),
@@ -365,15 +365,15 @@ func (s *websocketServer) broadcast(msg string, msgType messageType) {
 		switch msgType {
 		case MessageTypeStdout:
 			message = &stdoutMessage{
-				Type:    MessageTypeStdout,
-				Content: string([]byte(msg)),
-				Time:    time.Now(),
+				Type: MessageTypeStdout,
+				Data: string([]byte(msg)),
+				Time: time.Now(),
 			}
 		case MessageTypeStderr:
 			message = &stderrMessage{
-				Type:    MessageTypeStderr,
-				Content: string([]byte(msg)),
-				Time:    time.Now(),
+				Type: MessageTypeStderr,
+				Data: string([]byte(msg)),
+				Time: time.Now(),
 			}
 		}
 		err := wsjson.Write(ctx, client.wsConn, message)
