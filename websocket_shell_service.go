@@ -87,7 +87,7 @@ type websocketServer struct {
 	clients            map[uuid.UUID]*wsClient
 	mu                 sync.Mutex
 	disableAuth        bool
-	trustedOrigins     []string
+	allowedOrigins     []string
 	disableOriginCheck bool
 }
 
@@ -168,8 +168,8 @@ func extractAuthTokenFromProtocols(header http.Header, expectedProto string) (st
 	return "", false
 }
 
-func isOriginAllowed(origin string, trustedOrigins []string) bool {
-	return slices.Contains(trustedOrigins, origin)
+func isOriginAllowed(origin string, allowedOrigins []string) bool {
+	return slices.Contains(allowedOrigins, origin)
 }
 
 var logHistory *logRing
@@ -178,7 +178,7 @@ func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !s.disableOriginCheck {
 		origin := r.Header.Get("Origin")
 
-		if !isOriginAllowed(origin, s.trustedOrigins) {
+		if !isOriginAllowed(origin, s.allowedOrigins) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)
 
@@ -391,7 +391,7 @@ func (s *websocketServer) broadcast(msg string, msgType messageType) {
 	}
 }
 
-func runWebsocketServer(ctx context.Context, logger *zap.Logger, errorChan chan error, finished *sync.WaitGroup, stdoutWriter *wsWriter, stderrWriter *wsWriter, stdin io.Writer, disableAuth bool, address string, trustedOrigins []string, disableOriginCheck bool, logBufferSize int) {
+func runWebsocketServer(ctx context.Context, logger *zap.Logger, errorChan chan error, finished *sync.WaitGroup, stdoutWriter *wsWriter, stderrWriter *wsWriter, stdin io.Writer, disableAuth bool, address string, allowedOrigins []string, disableOriginCheck bool, logBufferSize int) {
 	l, err := net.Listen("tcp", address)
 	if err != nil {
 		errorChan <- fmt.Errorf("failed to setup websocket server on %s: %w", address, err)
@@ -413,7 +413,7 @@ func runWebsocketServer(ctx context.Context, logger *zap.Logger, errorChan chan 
 			map[uuid.UUID]*wsClient{},
 			sync.Mutex{},
 			disableAuth,
-			trustedOrigins,
+			allowedOrigins,
 			disableOriginCheck,
 		},
 		ReadTimeout:  time.Second * 10,
