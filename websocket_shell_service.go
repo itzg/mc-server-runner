@@ -323,11 +323,18 @@ func handleIncoming(c *websocket.Conn, s *websocketServer, ctx context.Context) 
 				s.logger.Error(fmt.Sprintf("JSON parse error: %v\n", err))
 			} else {
 				s.logger.Debug(fmt.Sprintf("Successfully parsed JSON: %+v\n", msg))
-				content := msg.Content
-				if !strings.HasSuffix(content, "\n") {
-					content += "\n"
+				switch msg.Type {
+				case MessageTypeStdin:
+					content := msg.Content
+					if !strings.HasSuffix(content, "\n") {
+						content += "\n"
+					}
+					s.stdin.Write([]byte(content))
+				default:
+					s.logger.Warn("unknown message type",
+						zap.String("type", string(msg.Type)),
+					)
 				}
-				s.stdin.Write([]byte(content))
 			}
 		}
 	}
