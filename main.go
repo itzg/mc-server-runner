@@ -102,8 +102,20 @@ func main() {
 		stderrWritersList = append(stderrWritersList, wsErrWriter)
 
 		backgroundFinished.Add(1)
-		go runWebsocketServer(ctx, logger, errorChan, &backgroundFinished, wsOutWriter, wsErrWriter, stdin, args.WebsocketDisableAuthentication,
-			args.WebsocketAddress, args.WebsocketTrustedOrigins, args.WebsocketDisableOriginCheck, args.WebsocketLogBufferSize)
+		go runWebsocketServer(
+			ctx,
+			logger,
+			errorChan,
+			&backgroundFinished,
+			wsOutWriter,
+			wsErrWriter,
+			stdin,
+			args.WebsocketDisableAuthentication,
+			args.WebsocketAddress,
+			args.WebsocketTrustedOrigins,
+			args.WebsocketDisableOriginCheck,
+			args.WebsocketLogBufferSize,
+		)
 	}
 
 	if args.RemoteConsole {
