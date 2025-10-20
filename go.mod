@@ -4,7 +4,7 @@ go 1.24.6
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/itzg/go-flagsfiller v1.16.0
+	github.com/itzg/go-flagsfiller v1.17.0
 	github.com/itzg/zapconfigs v0.1.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.42.0
