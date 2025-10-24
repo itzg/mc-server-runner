@@ -27,10 +27,10 @@ const (
 	// Client -> Server
 	MessageTypeStdin messageType = "stdin"
 	// Server -> Client
-	MessageTypeStdout    messageType = "stdout"
-	MessageTypeStderr    messageType = "stderr"
+	MessageTypeStdout      messageType = "stdout"
+	MessageTypeStderr      messageType = "stderr"
 	MessageTypeLogHistory  messageType = "logHistory"
-	MessageTypeAuthError messageType = "auth_err"
+	MessageTypeAuthFailure messageType = "authFailure"
 )
 
 type wsMessage interface {
@@ -67,12 +67,12 @@ type logHistoryMessage struct {
 
 func (m logHistoryMessage) getType() string { return string(m.Type) }
 
-type authErrorMessage struct {
+type authFailureMessage struct {
 	Type   messageType `json:"type"`
 	Reason string      `json:"reason"`
 }
 
-func (m authErrorMessage) getType() string { return string(m.Type) }
+func (m authFailureMessage) getType() string { return string(m.Type) }
 
 type wsClient struct {
 	wsConn         *websocket.Conn
@@ -183,8 +183,8 @@ func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)
 
-			errMsg := authErrorMessage{
-				Type:   MessageTypeAuthError,
+			errMsg := authFailureMessage{
+				Type:   MessageTypeAuthFailure,
 				Reason: "origin not allowed",
 			}
 			json.NewEncoder(w).Encode(errMsg)
@@ -206,8 +206,8 @@ func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 
-			errMsg := authErrorMessage{
-				Type:   MessageTypeAuthError,
+			errMsg := authFailureMessage{
+				Type:   MessageTypeAuthFailure,
 				Reason: "invalid password",
 			}
 			json.NewEncoder(w).Encode(errMsg)
