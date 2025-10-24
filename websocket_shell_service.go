@@ -239,7 +239,10 @@ func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Unlock()
 
-	s.logger.Info(fmt.Sprintf("Websocket connection opened with %v", r.RemoteAddr))
+	s.logger.Info(
+		"Websocket connection opened",
+		zap.String("addr", r.RemoteAddr),
+	)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -259,14 +262,16 @@ func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			switch closeStatus {
 			case websocket.StatusNormalClosure | websocket.StatusGoingAway:
 				s.logger.Info(
-					fmt.Sprintf("Websocket connection closed with %v", r.RemoteAddr),
+					"Websocket connection closed",
+					zap.String("addr", r.RemoteAddr),
 					zap.Uint("code", uint(closeStatus)),
 					zap.String("reason", closeStatus.String()),
 				)
 				return
 			default:
 				s.logger.Error(
-					fmt.Sprintf("failed to echo with %v", r.RemoteAddr),
+					"failed to echo",
+					zap.String("addr", r.RemoteAddr),
 					zap.Uint("code", uint(closeStatus)),
 					zap.String("reason", closeStatus.String()),
 					zap.Error(err),
