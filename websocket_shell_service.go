@@ -89,6 +89,23 @@ type websocketServer struct {
 	disableAuth        bool
 	allowedOrigins     []string
 	disableOriginCheck bool
+	websocketPassword  string
+}
+
+func (s *websocketServer) getWebsocketPassword() string {
+	var password string
+
+	password = s.websocketPassword
+	if password != "" {
+		return password
+	}
+
+	password = os.Getenv("RCON_PASSWORD")
+	if password != "" {
+		return password
+	}
+
+	return "minecraft"
 }
 
 type logRing struct {
@@ -125,22 +142,6 @@ func (lr *logRing) getAll() []string {
 	})
 
 	return result
-}
-
-func getWebsocketPassword() string {
-	var password string
-
-	password = os.Getenv("WEBSOCKET_PASSWORD")
-	if password != "" {
-		return password
-	}
-
-	password = os.Getenv("RCON_PASSWORD")
-	if password != "" {
-		return password
-	}
-
-	return "minecraft"
 }
 
 func extractAuthTokenFromProtocols(header http.Header, expectedProto string) (string, bool) {
@@ -201,7 +202,7 @@ func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// expect string: "mc-server-runner-ws-v1, <TOKEN HERE>"
 		token, exists := extractAuthTokenFromProtocols(r.Header, "mc-server-runner-ws-v1")
 
-		if !exists || token != getWebsocketPassword() {
+		if !exists || token != s.getWebsocketPassword() {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 
@@ -391,7 +392,20 @@ func (s *websocketServer) broadcast(msg string, msgType messageType) {
 	}
 }
 
-func runWebsocketServer(ctx context.Context, logger *zap.Logger, errorChan chan error, finished *sync.WaitGroup, stdoutWriter *wsWriter, stderrWriter *wsWriter, stdin io.Writer, disableAuth bool, address string, allowedOrigins []string, disableOriginCheck bool, logBufferSize int) {
+func runWebsocketServer(
+	ctx context.Context,
+	logger *zap.Logger,
+	errorChan chan error,
+	finished *sync.WaitGroup,
+	stdoutWriter *wsWriter,
+	stderrWriter *wsWriter,
+	stdin io.Writer,
+	disableAuth bool,
+	address string,
+	allowedOrigins []string,
+	disableOriginCheck bool,
+	logBufferSize int,
+	websocketPassword string) {
 	l, err := net.Listen("tcp", address)
 	if err != nil {
 		errorChan <- fmt.Errorf("failed to setup websocket server on %s: %w", address, err)
@@ -415,6 +429,7 @@ func runWebsocketServer(ctx context.Context, logger *zap.Logger, errorChan chan 
 			disableAuth,
 			allowedOrigins,
 			disableOriginCheck,
+			websocketPassword,
 		},
 		ReadTimeout:  time.Second * 10,
 		WriteTimeout: time.Second * 10,

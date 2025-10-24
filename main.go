@@ -34,6 +34,7 @@ type Args struct {
 	WebsocketAddress               string        `default:"0.0.0.0:80" usage:"Bind address for websocket server" env:"WEBSOCKET_ADDRESS"`
 	WebsocketDisableOriginCheck    bool          `default:"false" usage:"Disable checking if origin is trusted" env:"WEBSOCKET_DISABLE_ORIGIN_CHECK"`
 	WebsocketAllowedOrigins        []string      `default:"" usage:"Comma-separated list of trusted origins" env:"WEBSOCKET_ALLOWED_ORIGINS"`
+	WebsocketPassword              string        `default:"" usage:"Password will be the same as RCON_PASSWORD if unset" env:"WEBSOCKET_PASSWORD"`
 	WebsocketDisableAuthentication bool          `default:"false" usage:"Disable websocket authentication" env:"WEBSOCKET_DISABLE_AUTHENTICATION"`
 	WebsocketLogBufferSize         int           `default:"50" usage:"Number of log lines to save and send to connecting clients" env:"WEBSOCKET_LOG_BUFFER_SIZE"`
 }
@@ -115,6 +116,7 @@ func main() {
 			args.WebsocketAllowedOrigins,
 			args.WebsocketDisableOriginCheck,
 			args.WebsocketLogBufferSize,
+			args.WebsocketPassword,
 		)
 	}
 
