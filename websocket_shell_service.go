@@ -29,7 +29,7 @@ const (
 	// Server -> Client
 	MessageTypeStdout    messageType = "stdout"
 	MessageTypeStderr    messageType = "stderr"
-	MessageTypeWelcome   messageType = "welcome"
+	MessageTypeLogHistory  messageType = "logHistory"
 	MessageTypeAuthError messageType = "auth_err"
 )
 
@@ -60,12 +60,12 @@ type stderrMessage struct {
 
 func (m stderrMessage) getType() string { return string(m.Type) }
 
-type welcomeMessage struct {
-	Type        messageType `json:"type"`
-	RecentLines []string    `json:"recentLines"`
+type logHistoryMessage struct {
+	Type  messageType `json:"type"`
+	Lines []string    `json:"lines"`
 }
 
-func (m welcomeMessage) getType() string { return string(m.Type) }
+func (m logHistoryMessage) getType() string { return string(m.Type) }
 
 type authErrorMessage struct {
 	Type   messageType `json:"type"`
@@ -248,9 +248,9 @@ func (s *websocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	go heartbeatRoutine(ctx, s.logger, c, 30*time.Second)
 
-	wsjson.Write(ctx, c, welcomeMessage{
-		Type:        MessageTypeWelcome,
-		RecentLines: logHistory.getAll(),
+	wsjson.Write(ctx, c, logHistoryMessage{
+		Type:  MessageTypeLogHistory,
+		Lines: logHistory.getAll(),
 	})
 
 	for {
