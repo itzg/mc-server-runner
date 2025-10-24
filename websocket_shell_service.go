@@ -49,7 +49,6 @@ func (m stdinMessage) getType() string { return string(m.Type) }
 type stdoutMessage struct {
 	Type messageType `json:"type"`
 	Data string      `json:"data"`
-	Time time.Time   `json:"time,omitzero"`
 }
 
 func (m stdoutMessage) getType() string { return string(m.Type) }
@@ -57,7 +56,6 @@ func (m stdoutMessage) getType() string { return string(m.Type) }
 type stderrMessage struct {
 	Type messageType `json:"type"`
 	Data string      `json:"data"`
-	Time time.Time   `json:"time,omitzero"`
 }
 
 func (m stderrMessage) getType() string { return string(m.Type) }
@@ -375,13 +373,11 @@ func (s *websocketServer) broadcast(msg string, msgType messageType) {
 			message = &stdoutMessage{
 				Type: MessageTypeStdout,
 				Data: string([]byte(msg)),
-				Time: time.Now(),
 			}
 		case MessageTypeStderr:
 			message = &stderrMessage{
 				Type: MessageTypeStderr,
 				Data: string([]byte(msg)),
-				Time: time.Now(),
 			}
 		}
 		err := wsjson.Write(ctx, client.wsConn, message)
