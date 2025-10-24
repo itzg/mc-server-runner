@@ -21,6 +21,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const WEBSOCKET_ENDPOINT = "/console"
+
 type messageType string
 
 const (
@@ -417,7 +419,7 @@ func runWebsocketServer(
 		return
 	}
 	logHistory = newLogRing(int(logBufferSize))
-	logger.Info(fmt.Sprintf("Starting websocket server on ws://%v", l.Addr()))
+	logger.Info(fmt.Sprintf("Starting websocket server on ws://%v%v", l.Addr(), WEBSOCKET_ENDPOINT))
 	if disableAuth {
 		logger.Warn("Websocket authentication is DISABLED. The websocket endpoint is unprotected and will accept commands from any client. This is insecure and not recommended for production.")
 	}
@@ -425,23 +427,28 @@ func runWebsocketServer(
 		logger.Warn("Origin check is DISABLED. The server will accept connections from browsers on ANY website, making it vulnerable to Cross-Site WebSocket Hijacking (CSWSH).")
 	}
 
+	mux := http.NewServeMux()
+	wsServer := &websocketServer{
+		logger,
+		stdin,
+		map[uuid.UUID]*wsClient{},
+		sync.Mutex{},
+		disableAuth,
+		allowedOrigins,
+		disableOriginCheck,
+		websocketPassword,
+	}
+
+	mux.Handle(WEBSOCKET_ENDPOINT, wsServer)
+
 	s := &http.Server{
-		Handler: &websocketServer{
-			logger,
-			stdin,
-			map[uuid.UUID]*wsClient{},
-			sync.Mutex{},
-			disableAuth,
-			allowedOrigins,
-			disableOriginCheck,
-			websocketPassword,
-		},
+		Handler:      mux,
 		ReadTimeout:  time.Second * 10,
 		WriteTimeout: time.Second * 10,
 	}
 
-	stdoutWriter.server = s.Handler.(*websocketServer)
-	stderrWriter.server = s.Handler.(*websocketServer)
+	stdoutWriter.server = wsServer
+	stderrWriter.server = wsServer
 
 	go func() {
 		serveErr := s.Serve(l)
