@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"net/http"
 	"os"
@@ -459,11 +460,28 @@ func runWebsocketServer(
 		timedCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		defer cancel()
 
-		logger.Debug("shutting down websocket server")
-		shutdownErr := s.Shutdown(timedCtx)
-		if shutdownErr != nil {
+		logger.Debug("Rejecting new ws connections...")
+		shutdownErrChan := make(chan error)
+		go func() {
+			shutdownErrChan <- s.Shutdown(timedCtx)
+		}()
+
+		logger.Debug("Sending 1001 going away to all clients...")
+		wsServer.mu.Lock()
+		clientsToClose := make(map[uuid.UUID]*wsClient, len(wsServer.clients))
+		maps.Copy(clientsToClose, wsServer.clients)
+		wsServer.mu.Unlock()
+
+		for id, client := range clientsToClose {
+			go func(clientId uuid.UUID, clientConn *wsClient) {
+				_ = clientConn.wsConn.Close(websocket.StatusGoingAway, "Server has stopped")
+			}(id, client)
+		}
+
+		if shutdownErr := <-shutdownErrChan; shutdownErr != nil {
 			logger.Error("failed to shutdown server", zap.Error(shutdownErr))
 		}
+		logger.Debug("Websocket server shut down complete.")
 	}()
 
 	<-ctx.Done()
