@@ -326,7 +326,7 @@ func handleIncoming(c *websocket.Conn, s *websocketServer, ctx context.Context) 
 
 			var msg stdinMessage
 			if err := json.Unmarshal(data, &msg); err != nil {
-				s.logger.Error(fmt.Sprintf("JSON parse error: %v\n", err))
+				s.logger.Warn(fmt.Sprintf("JSON parse error: %v\n", err))
 			} else {
 				s.logger.Debug(fmt.Sprintf("Successfully parsed JSON: %+v\n", msg))
 				switch msg.Type {
