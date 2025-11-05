@@ -2,6 +2,8 @@ module github.com/itzg/mc-server-runner
 
 go 1.25.3
 
+toolchain go1.23.10
+
 require (
 	github.com/google/uuid v1.6.0
 	github.com/itzg/go-flagsfiller v1.17.0

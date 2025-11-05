@@ -37,16 +37,19 @@ docker run -it --rm \
   -v ${PWD}:/build \
   -w /build \
   -p 2222:2222 \
-  golang:1.19
+  golang:1.23
 ```
 
 Within that container, build/test by running:
 
 ```bash
+go mod tidy
 go run . test/dump.sh
 go run . test/bash-only.sh
+
 # Used to test remote console functionality
-# Connect to this using an ssh client from outside the container to ensure two-way communication works
+# Connect to this using an ssh client from outside the container to
+# ensure two-way communication works (Default password: "minecraft")
 go run . -remote-console /usr/bin/sh
 # The following should fail
 go run . --shell sh test/bash-only.sh
