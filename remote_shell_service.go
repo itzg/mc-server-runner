@@ -179,7 +179,7 @@ func ScanForSSH(data []byte, atEOF bool) (advance int, token []byte, err error) 
 		return len(data), data, nil
 	}
 	if i := bytes.IndexByte(data, '\n'); i >= 0 {
-		return i + 1, data[0:i+1], nil
+		return i + 1, data[0 : i+1], nil
 	}
 
 	// Return remaining data at EOF
@@ -197,10 +197,6 @@ func consoleOutRoutine(output io.Writer, console *Console, target ConsoleTarget,
 	scanner.Split(ScanForSSH)
 	for scanner.Scan() {
 		outBytes := []byte(scanner.Text())
-		_, err := output.Write(outBytes)
-		if err != nil {
-			logger.Error("Failed to write to stdout")
-		}
 
 		remoteSessions := console.CurrentSessions()
 		for _, session := range remoteSessions {
@@ -455,4 +451,42 @@ func runRemoteShellServer(console *Console, logger *zap.Logger) {
 		twinKeys(hostKeys),
 		ssh.PasswordAuth(func(ctx ssh.Context, password string) bool { return passwordHandler(ctx, password, logger) }),
 	))
+}
+
+type pipeWriter struct {
+	readers []io.Reader
+	writers []io.WriteCloser
+	logger  *zap.Logger
+}
+
+func newPipeWriter(logger *zap.Logger) *pipeWriter {
+	return &pipeWriter{
+		readers: make([]io.Reader, 0),
+		writers: make([]io.WriteCloser, 0),
+		logger:  logger,
+	}
+}
+
+func (pw *pipeWriter) AddReader() io.Reader {
+	r, w := io.Pipe()
+	pw.readers = append(pw.readers, r)
+	pw.writers = append(pw.writers, w)
+	return r
+}
+
+func (pw *pipeWriter) Write(p []byte) (n int, err error) {
+	for _, w := range pw.writers {
+		if _, err := w.Write(p); err != nil {
+			pw.logger.Error("error writing to ssh client")
+			continue
+		}
+	}
+	return len(p), nil
+}
+
+func (pw *pipeWriter) Close() error {
+	for _, w := range pw.writers {
+		w.Close()
+	}
+	return nil
 }
