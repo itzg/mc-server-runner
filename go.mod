@@ -1,6 +1,6 @@
 module github.com/itzg/mc-server-runner
 
-go 1.25.3
+go 1.25.5
 
 require (
 	github.com/coder/websocket v1.8.13
