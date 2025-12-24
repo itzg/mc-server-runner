@@ -70,6 +70,10 @@ func main() {
 		logger.Fatal("Missing executable arguments")
 	}
 
+	if args.StopCommand != "" {
+		args.StopCommand = strings.ReplaceAll(args.StopCommand, "\"", "")
+	}
+
 	if args.Shell != "" {
 		cmd = exec.Command(args.Shell, flag.Args()...)
 	} else {
