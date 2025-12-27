@@ -30,7 +30,7 @@ type Args struct {
 	RemoteConsole                  bool          `usage:"Allow remote shell connections over SSH to server console"`
 	Shell                          string        `usage:"When set, pass the arguments to this shell"`
 	NamedPipe                      string        `usage:"Optional path to create and read a named pipe for console input"`
-	WebsocketConsole               bool          `usage:"Allow remote shell over websocket"`
+	WebsocketConsole               bool          `usage:"Allow remote shell over websocket" env:"WEBSOCKET_CONSOLE"`
 	WebsocketAddress               string        `default:"0.0.0.0:80" usage:"Bind address for websocket server" env:"WEBSOCKET_ADDRESS"`
 	WebsocketDisableOriginCheck    bool          `default:"false" usage:"Disable checking if origin is trusted" env:"WEBSOCKET_DISABLE_ORIGIN_CHECK"`
 	WebsocketAllowedOrigins        []string      `default:"" usage:"Comma-separated list of trusted origins" env:"WEBSOCKET_ALLOWED_ORIGINS"`
