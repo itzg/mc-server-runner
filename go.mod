@@ -9,12 +9,12 @@ require (
 	github.com/itzg/zapconfigs v0.1.0
 	go.uber.org/zap v1.27.1
 	golang.org/x/crypto v0.45.0
-	golang.org/x/term v0.38.0
+	golang.org/x/term v0.39.0
 )
 
 require (
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
-	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/sys v0.40.0 // indirect
 )
 
 require (
