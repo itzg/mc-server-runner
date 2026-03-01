@@ -198,7 +198,7 @@ func main() {
 				logger.Warn("Minecraft server failed. Inspect logs above for errors that indicate cause. DO NOT report this line as an error.",
 					zap.Int("exitCode", exitCode))
 				if exitCode == 137 {
-					logger.Error("Exit code 137 indicates the process was killed by SIGKILL, which is commonly caused by the system or container OOM killer running out of memory. Consider increasing the memory allocation for the server or container.")
+					logger.Error("Exit code 137 usually indicates the process was killed due to excessive memory use.")
 					logSystemMemory(logger)
 				}
 				cmdExitChan <- exitCode
