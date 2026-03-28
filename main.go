@@ -155,7 +155,7 @@ func main() {
 	cmd.Stderr = multiErr
 
 	if !args.RemoteConsole {
-		if hasRconCli() && args.NamedPipe == "" {
+		if hasRconCli() && args.NamedPipe == "" && !args.WebsocketConsole {
 			logger.Debug("Directly assigning stdin")
 			cmd.Stdin = os.Stdin
 			stdin = os.Stdin
