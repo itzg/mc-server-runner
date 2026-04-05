@@ -146,13 +146,15 @@ func main() {
 		logger.Info("Running with remote console support")
 	}
 
-	logger.Debug("Directly assigning stdout/stderr")
-
-	multiOut := io.MultiWriter(stdoutWritersList...)
-	multiErr := io.MultiWriter(stderrWritersList...)
-
-	cmd.Stdout = multiOut
-	cmd.Stderr = multiErr
+	if len(stdoutWritersList) == 1 {
+		logger.Debug("Directly assigning stdout/stderr")
+		cmd.Stdout = stdoutWritersList[0]
+		cmd.Stderr = stderrWritersList[0]
+	} else {
+		logger.Debug("Assigning MultiWriter for for stdout/stderr")
+		cmd.Stdout = io.MultiWriter(stdoutWritersList...)
+		cmd.Stderr = io.MultiWriter(stderrWritersList...)
+	}
 
 	if !args.RemoteConsole {
 		if hasRconCli() && args.NamedPipe == "" && !args.WebsocketConsole {
