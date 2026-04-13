@@ -9,7 +9,7 @@ require (
 	github.com/itzg/zapconfigs v0.1.0
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
 	go.uber.org/zap v1.27.1
-	golang.org/x/crypto v0.49.0
+	golang.org/x/crypto v0.50.0
 	golang.org/x/term v0.42.0
 )
 
