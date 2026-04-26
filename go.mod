@@ -1,6 +1,8 @@
 module github.com/itzg/mc-server-runner
 
-go 1.25.8
+go 1.26
+
+toolchain go1.26.2
 
 require (
 	github.com/coder/websocket v1.8.14
