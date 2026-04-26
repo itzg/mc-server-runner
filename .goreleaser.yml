@@ -1,5 +1,6 @@
 project_name: mc-server-runner
 release:
+  replace_existing_artifacts: true
   github:
     owner: itzg
     name: mc-server-runner
