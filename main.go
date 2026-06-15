@@ -26,6 +26,7 @@ type Args struct {
 	StopCommand                    string        `default:"stop" usage:"Which command to send to the server to stop it"`
 	StopDuration                   time.Duration `usage:"Amount of time in Golang duration to wait after sending the 'stop' command."`
 	StopServerAnnounceDelay        time.Duration `default:"0s" usage:"Amount of time in Golang duration to wait after announcing server shutdown"`
+	StopServerDelayCommand         string        `use:"Specifies the command to run before StopServerAnnounceDelay runs out. If unset, announces seconds till shutdown" default:""`
 	DetachStdin                    bool          `usage:"Don't forward stdin and allow process to be put in background"`
 	RemoteConsole                  bool          `usage:"Allow remote shell connections over SSH to server console"`
 	Shell                          string        `usage:"When set, pass the arguments to this shell"`
@@ -220,7 +221,12 @@ func main() {
 			logger.Info("gracefully stopping server...")
 			cancel()
 			if args.StopServerAnnounceDelay > 0 {
-				announceStop(logger, stdin, args.StopServerAnnounceDelay)
+				if args.StopServerDelayCommand == "" {
+					announceStop(logger, stdin, args.StopServerAnnounceDelay)
+				} else {
+					runStopDelayCommand(logger, stdin, args.StopServerDelayCommand)
+				}
+
 				logger.Info("Sleeping before server stop", zap.Duration("sleepTime", args.StopServerAnnounceDelay))
 				timer = time.AfterFunc(args.StopServerAnnounceDelay, func() {
 					logger.Info("StopServerAnnounceDelay elapsed, stopping server")
@@ -342,6 +348,15 @@ func terminate(logger *zap.Logger, stdin io.Writer, cmd *exec.Cmd, stopDuration 
 				logger.Error("Failed to forcefully kill process")
 			}
 		})
+	}
+}
+
+func runStopDelayCommand(logger *zap.Logger, stdin io.Writer, command string) {
+	logger.Info("Sending shutdown command to Minecraft server")
+
+	err := sendCommand(stdin, command)
+	if err != nil {
+		logger.Error("Failed to send custom command", zap.Error(err))
 	}
 }
 
