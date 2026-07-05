@@ -5,7 +5,7 @@ go 1.26.4
 require (
 	github.com/coder/websocket v1.8.15
 	github.com/google/uuid v1.6.0
-	github.com/itzg/go-flagsfiller v1.18.0
+	github.com/itzg/go-flagsfiller v1.19.0
 	github.com/itzg/zapconfigs v0.1.0
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
 	go.uber.org/zap v1.28.0
