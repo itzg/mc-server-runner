@@ -430,8 +430,8 @@ func twinKeys(keys *hostKeys) ssh.Option {
 	}
 }
 
-func runRemoteShellServer(console *Console, logger *zap.Logger) {
-	logger.Info("Starting remote shell server on 2222...")
+func runRemoteShellServer(console *Console, logger *zap.Logger, port string) {
+	logger.Info("Starting remote shell server on "+port+"...")
 	ssh.Handle(func(s ssh.Session) { handleSession(s, console, logger) })
 
 	hostKeys, err := ensureHostKeys(logger)
@@ -446,7 +446,7 @@ func runRemoteShellServer(console *Console, logger *zap.Logger) {
 	}
 
 	log.Fatal(ssh.ListenAndServe(
-		":2222",
+		":"+port,
 		nil,
 		twinKeys(hostKeys),
 		ssh.PasswordAuth(func(ctx ssh.Context, password string) bool { return passwordHandler(ctx, password, logger) }),
