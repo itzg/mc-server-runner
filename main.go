@@ -29,7 +29,7 @@ type Args struct {
 	StopServerDelayCommand         string        `use:"Specifies the command to run before StopServerAnnounceDelay runs out. If unset, announces seconds till shutdown" default:""`
 	DetachStdin                    bool          `usage:"Don't forward stdin and allow process to be put in background"`
 	RemoteConsole                  bool          `usage:"Allow remote shell connections over SSH to server console"`
-	RemoteConsolePort              string        `default:"2222" usage:"Port to use for the remote shell connection over SSH to server console"`
+	RemoteConsoleBindAddress       string        `default:":2222" usage:"Address to use for the remote shell connection over SSH to server console"`
 	Shell                          string        `usage:"When set, pass the arguments to this shell"`
 	NamedPipe                      string        `usage:"Optional path to create and read a named pipe for console input"`
 	WebsocketConsole               bool          `usage:"Allow remote shell over websocket" env:"WEBSOCKET_CONSOLE"`
@@ -143,7 +143,7 @@ func main() {
 		go consoleOutRoutine(os.Stdout, console, stdOutTarget, logger)
 		go consoleOutRoutine(os.Stderr, console, stdErrTarget, logger)
 
-		go runRemoteShellServer(console, logger, args.RemoteConsolePort)
+		go runRemoteShellServer(console, logger, args.RemoteConsoleBindAddress)
 
 		logger.Info("Running with remote console support")
 	}
