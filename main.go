@@ -27,6 +27,9 @@ type Args struct {
 	StopDuration                   time.Duration `usage:"Amount of time in Golang duration to wait after sending the 'stop' command."`
 	StopServerAnnounceDelay        time.Duration `default:"0s" usage:"Amount of time in Golang duration to wait after announcing server shutdown"`
 	StopServerDelayCommand         string        `use:"Specifies the command to run before StopServerAnnounceDelay runs out. If unset, announces seconds till shutdown" default:""`
+	StopServerSkipDelayWhenEmpty   bool          `usage:"Bypass StopServerAnnounceDelay when the server status reports that no players are online"`
+	ServerHost                     string        `default:"localhost" usage:"Host of the Minecraft server to query for its status"`
+	ServerPort                     int           `default:"25565" usage:"Port of the Minecraft server to query for its status"`
 	DetachStdin                    bool          `usage:"Don't forward stdin and allow process to be put in background"`
 	RemoteConsole                  bool          `usage:"Allow remote shell connections over SSH to server console"`
 	RemoteConsoleBindAddress       string        `default:":2222" usage:"Address to use for the remote shell connection over SSH to server console"`
@@ -213,6 +216,10 @@ func main() {
 		}
 	}()
 
+	onlinePlayers := func() (int, error) {
+		return queryOnlinePlayers(args.ServerHost, args.ServerPort, playerCountQueryTimeout)
+	}
+
 	var timer *time.Timer
 
 	for {
@@ -221,7 +228,7 @@ func main() {
 			logger.Debug("SIGTERM caught")
 			logger.Info("gracefully stopping server...")
 			cancel()
-			if args.StopServerAnnounceDelay > 0 {
+			if shouldAnnounceStop(logger, args.StopServerAnnounceDelay, args.StopServerSkipDelayWhenEmpty, onlinePlayers) {
 				if args.StopServerDelayCommand == "" {
 					announceStop(logger, stdin, args.StopServerAnnounceDelay)
 				} else {
