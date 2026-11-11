@@ -3,6 +3,7 @@ module github.com/itzg/mc-server-runner
 go 1.27.4
 
 require (
+	github.com/Raqbit/mc-pinger v0.2.4
 	github.com/coder/websocket v1.8.15
 	github.com/gliderlabs/ssh v0.3.8
 	github.com/google/uuid v1.6.0
@@ -17,6 +18,7 @@ require (
 require (
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/iancoleman/strcase v0.3.0 // indirect
+	github.com/pires/go-proxyproto v0.6.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
 )

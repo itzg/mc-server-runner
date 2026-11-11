@@ -21,6 +21,10 @@ to ensure the Minecraft server is stopped gracefully when the container is sent 
         Optional path to create and read a named pipe for console input
   -remote-console
         Allow remote shell connections over SSH to server console
+  -server-host string
+        Host of the Minecraft server to query for its status (default "localhost")
+  -server-port int
+        Port of the Minecraft server to query for its status (default 25565)
   -shell string
         When set, pass the arguments to this shell
   -stop-command string
@@ -29,6 +33,8 @@ to ensure the Minecraft server is stopped gracefully when the container is sent 
         Amount of time in Golang duration to wait after sending the 'stop' command.
   -stop-server-announce-delay duration
         Amount of time in Golang duration to wait after announcing server shutdown
+  -stop-server-skip-delay-when-empty
+        Bypass StopServerAnnounceDelay when the server status reports that no players are online
   -websocket-address string
         Bind address for websocket server (env WEBSOCKET_ADDRESS) (default "0.0.0.0:80")
   -websocket-allowed-origins value
@@ -47,6 +53,10 @@ to ensure the Minecraft server is stopped gracefully when the container is sent 
 
 The `-stop-server-announce-delay` can by bypassed by sending a `SIGUSR1` signal to the `mc-server-runner` process.  
 This works in cases where a prior `SIGTERM` has already been sent **and** in cases where no prior signal has been sent.
+
+With `-stop-server-skip-delay-when-empty` the announcement and delay are also bypassed when nobody is online at the time the `TERM` signal is received.
+The player count is obtained by querying the status of the Java edition server at `-server-host` and `-server-port`, the same way a Minecraft client does for its server list.
+If that query fails, such as when the server is still starting up, the announcement and delay proceed as usual.
 
 ## Development Testing
 
