@@ -1,6 +1,6 @@
 module github.com/itzg/mc-server-runner
 
-go 1.27.3
+go 1.27.4
 
 require (
 	github.com/Raqbit/mc-pinger v0.2.4
@@ -11,7 +11,7 @@ require (
 	github.com/itzg/zapconfigs v0.1.0
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
 	go.uber.org/zap v1.28.0
-	golang.org/x/crypto v0.58.0
+	golang.org/x/crypto v0.59.0
 	golang.org/x/term v0.48.0
 )
 
