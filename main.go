@@ -42,6 +42,8 @@ type Args struct {
 	WebsocketPassword              string        `default:"" usage:"Password will be the same as RCON_PASSWORD if unset" env:"WEBSOCKET_PASSWORD"`
 	WebsocketDisableAuthentication bool          `default:"false" usage:"Disable websocket authentication" env:"WEBSOCKET_DISABLE_AUTHENTICATION"`
 	WebsocketLogBufferSize         int           `default:"50" usage:"Number of log lines to save and send to connecting clients" env:"WEBSOCKET_LOG_BUFFER_SIZE"`
+	WebhookURL                     string        `usage:"When set, the server starting, stopped, and failed events are sent to this URL as a JSON POST"`
+	WebhookServerInfo              []string      `usage:"Comma-separated list of environment variable names to include with their values as server info in webhook events"`
 }
 
 func main() {
@@ -171,9 +173,13 @@ func main() {
 		}
 	}
 
+	webhook := newWebhookNotifier(logger, args.WebhookURL, args.WebhookServerInfo, webhookTimeout)
+
 	err = cmd.Start()
 	if err != nil {
 		logger.Error("Failed to start", zap.Error(err))
+	} else {
+		webhook.Starting()
 	}
 
 	if args.Bootstrap != "" {
@@ -266,6 +272,7 @@ func main() {
 
 		case exitCode := <-cmdExitChan:
 			cancel()
+			webhook.Exited(exitCode)
 			logger.Debug("Waiting on background processes to finish")
 			backgroundFinished.Wait()
 			logger.Info("Done")
