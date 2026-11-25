@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -333,28 +332,15 @@ func TestWebhookNotifierErrorResponse(t *testing.T) {
 	}
 }
 
-// The following tests run the built runner with the scripts in test/
-
-var buildRunner = sync.OnceValues(func() (string, error) {
-	dir, err := os.MkdirTemp("", "mc-server-runner-test")
-	if err != nil {
-		return "", err
-	}
-	binary := filepath.Join(dir, "mc-server-runner")
-	output, err := exec.Command("go", "build", "-o", binary, ".").CombinedOutput()
-	if err != nil {
-		return "", errors.New("failed to build runner: " + err.Error() + ": " + string(output))
-	}
-	return binary, nil
-})
+// The following tests run the runner with the scripts in test/. The test binary is the runner
+// when BE_MC_SERVER_RUNNER is set.
 
 func TestMain(m *testing.M) {
-	code := m.Run()
-	// only removes something when a test needed the runner to be built
-	if binary, err := buildRunner(); err == nil {
-		_ = os.RemoveAll(filepath.Dir(binary))
+	if os.Getenv("BE_MC_SERVER_RUNNER") == "1" {
+		main()
+		os.Exit(0)
 	}
-	os.Exit(code)
+	os.Exit(m.Run())
 }
 
 func runnerCommand(t *testing.T, args ...string) *exec.Cmd {
@@ -362,12 +348,13 @@ func runnerCommand(t *testing.T, args ...string) *exec.Cmd {
 	if _, err := exec.LookPath("bash"); err != nil {
 		t.Skip("bash is needed for the scripts in test/")
 	}
-	binary, err := buildRunner()
+	exe, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(binary, args...)
+	cmd := exec.Command(exe, args...)
 	cmd.Env = append(os.Environ(),
+		"BE_MC_SERVER_RUNNER=1",
 		// stop via the console of the test scripts
 		"ENABLE_RCON=false",
 		"TYPE=PAPER",
